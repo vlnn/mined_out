@@ -1,4 +1,4 @@
-from mined_out.common import Direction,CellType,Position,Explosion
+from mined_out.common import Direction, CellType, Position, Explosion, MAX_LEVEL
 from mined_out.game_state import GameState
 from mined_out.movement_handler import MovementHandler
 from mined_out.grid_analyzer import GridAnalyzer
@@ -50,7 +50,7 @@ class GameLogic:
         return state.items_collected >= state.total_items
 
     def _advance_level(self, state: GameState) -> None:
-        if state.level >= 5:
+        if state.level >= MAX_LEVEL:
             state.won = True
             state.game_over = True
         else:
@@ -62,7 +62,7 @@ class GameLogic:
     def _start_mine_reveal(self, state: GameState, mine_pos: Position) -> None:
         state.grid[mine_pos.y][mine_pos.x] = CellType.REVEALED_MINE
         state.revealing_mine_pos = mine_pos
-        state.mine_reveal_timer = 15  # MINE_REVEAL_FRAMES
+        state.mine_reveal_timer = 5  # MINE_REVEAL_FRAMES
 
     def _explode_mine(self, state: GameState, mine_pos: Position) -> None:
         state.explosion = Explosion(mine_pos)
@@ -76,7 +76,7 @@ class GameLogic:
     def update_timers(self, state: GameState) -> None:
         if state.explosion:
             state.explosion.frame += 1
-            if state.explosion.frame >= 30:  # EXPLOSION_FRAMES
+            if state.explosion.frame >= 80:  # EXPLOSION_FRAMES
                 state.explosion = None
 
         if state.mine_reveal_timer > 0:

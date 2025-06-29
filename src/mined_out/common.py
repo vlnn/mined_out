@@ -1,6 +1,8 @@
 from enum import Enum
 from dataclasses import dataclass
 
+MAX_LEVEL = 5
+
 class CellType(Enum):
     EMPTY = "empty"
     WALL = "wall"
