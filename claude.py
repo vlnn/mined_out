@@ -1,7 +1,7 @@
 import pyxel
 from enum import Enum
 from dataclasses import dataclass
-from typing import List, Tuple, Optional, Set
+from typing import List, Optional
 import random
 
 
@@ -12,6 +12,7 @@ class CellType(Enum):
     PLAYER = 3
     ITEM = 4
     EXIT = 5
+    REVEALED_MINE = 6
 
 
 class Direction(Enum):
@@ -25,171 +26,169 @@ class Direction(Enum):
 class Position:
     x: int
     y: int
-    
-    def __add__(self, direction: Direction) -> 'Position':
+
+    def move(self, direction: Direction) -> 'Position':
         dx, dy = direction.value
         return Position(self.x + dx, self.y + dy)
-    
-    def __eq__(self, other) -> bool:
-        return self.x == other.x and self.y == other.y
+
+
+@dataclass
+class Explosion:
+    pos: Position
+    frame: int = 0
 
 
 @dataclass
 class GameState:
     player_pos: Position
-    level_grid: List[List[CellType]]
+    grid: List[List[CellType]]
     items_collected: int
     total_items: int
-    level_number: int
+    level: int
+    mine_count_nearby: int = 0
     game_over: bool = False
     won: bool = False
+    explosion: Optional[Explosion] = None
+    mine_reveal_timer: int = 0
+    revealing_mine_pos: Optional[Position] = None
 
 
 class MinedOutGame:
+    GRID_WIDTH = 20
+    GRID_HEIGHT = 15
+    CELL_SIZE = 8
+    MINE_REVEAL_FRAMES = 15
+    EXPLOSION_FRAMES = 30
+
     def __init__(self):
-        self.width = 160
-        self.height = 120
-        self.grid_width = 20
-        self.grid_height = 15
-        self.cell_size = 8
-        
+        self.width = self.GRID_WIDTH * self.CELL_SIZE
+        self.height = self.GRID_HEIGHT * self.CELL_SIZE
+
         pyxel.init(self.width, self.height, title="Mined-Out!")
-        pyxel.mouse(True)
-        
-        self.game_state = self._create_initial_game_state()
-        
+        pyxel.sounds[0].set("c2e2g2c3", "p", "7", "f", 10)  # Explosion
+        pyxel.sounds[1].set("g3c4e4g4", "p", "7", "f", 8)   # Item collect
+        pyxel.mouse(False)
+
+        self.state = self._create_level(1)
+        self._update_mine_count()
+
         pyxel.run(self.update, self.draw)
-    
-    def _create_initial_game_state(self) -> GameState:
-        """Initialize the first level of the game."""
-        level_grid = self._generate_level(1)
-        player_pos = self._find_player_start_position(level_grid)
-        total_items = self._count_items_in_level(level_grid)
-        
+
+    def _create_level(self, level_num: int) -> GameState:
+        grid = self._generate_grid(level_num)
+        player_pos = self._find_cell_position(grid, CellType.PLAYER)
+        total_items = self._count_cells(grid, CellType.ITEM)
+
         return GameState(
             player_pos=player_pos,
-            level_grid=level_grid,
+            grid=grid,
             items_collected=0,
             total_items=total_items,
-            level_number=1
+            level=level_num
         )
-    
-    def _generate_level(self, level_num: int) -> List[List[CellType]]:
-        """Generate a level layout based on level number."""
-        grid = [[CellType.EMPTY for _ in range(self.grid_width)] 
-                for _ in range(self.grid_height)]
-        
-        # Create walls around the border
-        self._add_border_walls(grid)
-        
-        # Add internal walls and obstacles
-        self._add_internal_walls(grid, level_num)
-        
-        # Place mines strategically
-        self._place_mines(grid, level_num)
-        
-        # Place collectible items
-        self._place_items(grid, level_num)
-        
-        # Place player start position
-        self._place_player_start(grid)
-        
-        # Place exit
-        self._place_exit(grid)
-        
+
+    def _generate_grid(self, level_num: int) -> List[List[CellType]]:
+        grid = [[CellType.EMPTY for _ in range(self.GRID_WIDTH)]
+                for _ in range(self.GRID_HEIGHT)]
+
+        self._add_borders(grid)
+        self._add_walls(grid, level_num)
+        self._add_mines(grid, level_num)
+        self._add_items(grid, level_num)
+        self._add_player(grid)
+        self._add_exit(grid)
+
         return grid
-    
-    def _add_border_walls(self, grid: List[List[CellType]]) -> None:
-        """Add walls around the level border."""
-        for y in range(self.grid_height):
-            for x in range(self.grid_width):
-                if (x == 0 or x == self.grid_width - 1 or 
-                    y == 0 or y == self.grid_height - 1):
+
+    def _add_borders(self, grid: List[List[CellType]]) -> None:
+        for y in range(self.GRID_HEIGHT):
+            for x in range(self.GRID_WIDTH):
+                if x == 0 or x == self.GRID_WIDTH - 1 or y == 0 or y == self.GRID_HEIGHT - 1:
                     grid[y][x] = CellType.WALL
-    
-    def _add_internal_walls(self, grid: List[List[CellType]], level_num: int) -> None:
-        """Add internal walls to create maze-like structure."""
-        wall_density = min(0.1 + (level_num * 0.05), 0.3)
-        
-        for y in range(2, self.grid_height - 2, 2):
-            for x in range(2, self.grid_width - 2, 2):
-                if random.random() < wall_density:
+
+    def _add_walls(self, grid: List[List[CellType]], level_num: int) -> None:
+        density = min(0.1 + level_num * 0.05, 0.3)
+        for y in range(2, self.GRID_HEIGHT - 2, 2):
+            for x in range(2, self.GRID_WIDTH - 2, 2):
+                if random.random() < density:
                     grid[y][x] = CellType.WALL
-                    # Add connecting walls
                     if random.random() < 0.5:
                         grid[y][x + 1] = CellType.WALL
                     if random.random() < 0.5:
                         grid[y + 1][x] = CellType.WALL
-    
-    def _place_mines(self, grid: List[List[CellType]], level_num: int) -> None:
-        """Place mines throughout the level."""
-        mine_count = min(5 + level_num * 3, 25)
-        placed = 0
-        
-        while placed < mine_count:
-            x = random.randint(1, self.grid_width - 2)
-            y = random.randint(1, self.grid_height - 2)
-            
-            if grid[y][x] == CellType.EMPTY:
-                grid[y][x] = CellType.MINE
-                placed += 1
-    
-    def _place_items(self, grid: List[List[CellType]], level_num: int) -> None:
-        """Place collectible items in the level."""
-        item_count = max(3, 8 - level_num)
-        placed = 0
-        
-        while placed < item_count:
-            x = random.randint(1, self.grid_width - 2)
-            y = random.randint(1, self.grid_height - 2)
-            
-            if grid[y][x] == CellType.EMPTY:
-                grid[y][x] = CellType.ITEM
-                placed += 1
-    
-    def _place_player_start(self, grid: List[List[CellType]]) -> None:
-        """Place player starting position."""
-        # Find a safe starting position
-        for y in range(1, self.grid_height - 1):
-            for x in range(1, self.grid_width - 1):
-                if (grid[y][x] == CellType.EMPTY and 
-                    self._is_safe_starting_position(grid, x, y)):
+
+    def _add_mines(self, grid: List[List[CellType]], level_num: int) -> None:
+        count = min(5 + level_num * 3, 25)
+        self._place_random_cells(grid, CellType.MINE, count)
+
+    def _add_items(self, grid: List[List[CellType]], level_num: int) -> None:
+        count = max(3, 8 - level_num)
+        self._place_random_cells(grid, CellType.ITEM, count)
+
+    def _add_player(self, grid: List[List[CellType]]) -> None:
+        for y in range(1, self.GRID_HEIGHT - 1):
+            for x in range(1, self.GRID_WIDTH - 1):
+                if grid[y][x] == CellType.EMPTY and self._is_safe_position(grid, x, y):
                     grid[y][x] = CellType.PLAYER
                     return
-    
-    def _place_exit(self, grid: List[List[CellType]]) -> None:
-        """Place the level exit."""
-        # Place exit in bottom-right area
-        for y in range(self.grid_height - 3, 0, -1):
-            for x in range(self.grid_width - 3, 0, -1):
+
+    def _add_exit(self, grid: List[List[CellType]]) -> None:
+        for y in range(self.GRID_HEIGHT - 3, 0, -1):
+            for x in range(self.GRID_WIDTH - 3, 0, -1):
                 if grid[y][x] == CellType.EMPTY:
                     grid[y][x] = CellType.EXIT
                     return
-    
-    def _is_safe_starting_position(self, grid: List[List[CellType]], x: int, y: int) -> bool:
-        """Check if position is safe for player start (no adjacent mines)."""
+
+    def _place_random_cells(self, grid: List[List[CellType]], cell_type: CellType, count: int) -> None:
+        placed = 0
+        while placed < count:
+            x = random.randint(1, self.GRID_WIDTH - 2)
+            y = random.randint(1, self.GRID_HEIGHT - 2)
+            if grid[y][x] == CellType.EMPTY:
+                grid[y][x] = cell_type
+                placed += 1
+
+    def _is_safe_position(self, grid: List[List[CellType]], x: int, y: int) -> bool:
         for dy in [-1, 0, 1]:
             for dx in [-1, 0, 1]:
                 nx, ny = x + dx, y + dy
-                if (0 <= nx < self.grid_width and 0 <= ny < self.grid_height and
+                if (0 <= nx < self.GRID_WIDTH and 0 <= ny < self.GRID_HEIGHT and
                     grid[ny][nx] == CellType.MINE):
                     return False
         return True
-    
-    def _find_player_start_position(self, grid: List[List[CellType]]) -> Position:
-        """Find the player's starting position in the grid."""
-        for y in range(self.grid_height):
-            for x in range(self.grid_width):
-                if grid[y][x] == CellType.PLAYER:
+
+    def _find_cell_position(self, grid: List[List[CellType]], cell_type: CellType) -> Position:
+        for y in range(self.GRID_HEIGHT):
+            for x in range(self.GRID_WIDTH):
+                if grid[y][x] == cell_type:
                     return Position(x, y)
-        return Position(1, 1)  # Fallback
-    
-    def _count_items_in_level(self, grid: List[List[CellType]]) -> int:
-        """Count total collectible items in the level."""
-        return sum(row.count(CellType.ITEM) for row in grid)
-    
-    def _get_movement_direction(self) -> Optional[Direction]:
-        """Get movement direction from player input."""
+        return Position(1, 1)
+
+    def _count_cells(self, grid: List[List[CellType]], cell_type: CellType) -> int:
+        return sum(row.count(cell_type) for row in grid)
+
+    def _is_valid_move(self, pos: Position) -> bool:
+        if not (0 <= pos.x < self.GRID_WIDTH and 0 <= pos.y < self.GRID_HEIGHT):
+            return False
+        cell = self.state.grid[pos.y][pos.x]
+        return cell not in [CellType.WALL]
+
+    def _count_adjacent_mines(self, pos: Position) -> int:
+        count = 0
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                if dx == 0 and dy == 0:
+                    continue
+                x, y = pos.x + dx, pos.y + dy
+                if (0 <= x < self.GRID_WIDTH and 0 <= y < self.GRID_HEIGHT and
+                    self.state.grid[y][x] == CellType.MINE):
+                    count += 1
+        return count
+
+    def _update_mine_count(self) -> None:
+        self.state.mine_count_nearby = self._count_adjacent_mines(self.state.player_pos)
+
+    def _get_input_direction(self) -> Optional[Direction]:
         if pyxel.btnp(pyxel.KEY_UP) or pyxel.btnp(pyxel.KEY_W):
             return Direction.UP
         elif pyxel.btnp(pyxel.KEY_DOWN) or pyxel.btnp(pyxel.KEY_S):
@@ -199,189 +198,182 @@ class MinedOutGame:
         elif pyxel.btnp(pyxel.KEY_RIGHT) or pyxel.btnp(pyxel.KEY_D):
             return Direction.RIGHT
         return None
-    
-    def _is_valid_position(self, pos: Position) -> bool:
-        """Check if position is within grid bounds."""
-        return (0 <= pos.x < self.grid_width and 
-                0 <= pos.y < self.grid_height)
-    
-    def _can_move_to_position(self, pos: Position) -> bool:
-        """Check if player can move to the given position."""
-        if not self._is_valid_position(pos):
-            return False
-        
-        cell = self.game_state.level_grid[pos.y][pos.x]
-        return cell not in [CellType.WALL, CellType.MINE]
-    
-    def _handle_player_movement(self, direction: Direction) -> None:
-        """Process player movement in the given direction."""
-        new_pos = self.game_state.player_pos + direction
-        
-        if not self._can_move_to_position(new_pos):
+
+    def _try_move_player(self, direction: Direction) -> None:
+        new_pos = self.state.player_pos.move(direction)
+
+        if not self._is_valid_move(new_pos):
             return
-        
-        # Check what's at the new position
-        cell_type = self.game_state.level_grid[new_pos.y][new_pos.x]
-        
-        if cell_type == CellType.MINE:
-            self._trigger_game_over()
-        elif cell_type == CellType.ITEM:
-            self._collect_item(new_pos)
-        elif cell_type == CellType.EXIT:
-            self._try_exit_level()
-        
-        # Move player
-        self._move_player_to_position(new_pos)
-    
-    def _move_player_to_position(self, new_pos: Position) -> None:
-        """Move player to new position and update grid."""
-        # Clear old position
-        old_pos = self.game_state.player_pos
-        self.game_state.level_grid[old_pos.y][old_pos.x] = CellType.EMPTY
-        
-        # Set new position
-        self.game_state.player_pos = new_pos
-        self.game_state.level_grid[new_pos.y][new_pos.x] = CellType.PLAYER
-    
-    def _collect_item(self, pos: Position) -> None:
-        """Handle item collection."""
-        self.game_state.items_collected += 1
-        self.game_state.level_grid[pos.y][pos.x] = CellType.EMPTY
-    
-    def _try_exit_level(self) -> None:
-        """Try to exit the current level."""
-        if self._all_items_collected():
-            self._advance_to_next_level()
+
+        cell = self.state.grid[new_pos.y][new_pos.x]
+
+        if cell == CellType.MINE:
+            self._start_mine_reveal(new_pos)
         else:
-            # Maybe show a message that all items must be collected
-            pass
-    
-    def _all_items_collected(self) -> bool:
-        """Check if all items have been collected."""
-        return self.game_state.items_collected >= self.game_state.total_items
-    
-    def _advance_to_next_level(self) -> None:
-        """Advance to the next level."""
-        next_level = self.game_state.level_number + 1
-        
-        if next_level > 5:  # Win condition
-            self.game_state.won = True
-            self.game_state.game_over = True
+            self._move_player_to(new_pos)
+            if cell == CellType.ITEM:
+                self._collect_item()
+            elif cell == CellType.EXIT and self.state.items_collected >= self.state.total_items:
+                self._advance_level()
+
+    def _move_player_to(self, new_pos: Position) -> None:
+        self.state.grid[self.state.player_pos.y][self.state.player_pos.x] = CellType.EMPTY
+        self.state.player_pos = new_pos
+        self.state.grid[new_pos.y][new_pos.x] = CellType.PLAYER
+        self._update_mine_count()
+
+    def _collect_item(self) -> None:
+        self.state.items_collected += 1
+        pyxel.play(0, 1)
+
+    def _advance_level(self) -> None:
+        if self.state.level >= 5:
+            self.state.won = True
+            self.state.game_over = True
         else:
-            # Generate next level
-            level_grid = self._generate_level(next_level)
-            player_pos = self._find_player_start_position(level_grid)
-            total_items = self._count_items_in_level(level_grid)
-            
-            self.game_state = GameState(
-                player_pos=player_pos,
-                level_grid=level_grid,
-                items_collected=0,
-                total_items=total_items,
-                level_number=next_level
-            )
-    
-    def _trigger_game_over(self) -> None:
-        """Trigger game over state."""
-        self.game_state.game_over = True
-        self.game_state.won = False
-    
+            self.state = self._create_level(self.state.level + 1)
+            self._update_mine_count()
+
+    def _start_mine_reveal(self, mine_pos: Position) -> None:
+        self.state.grid[mine_pos.y][mine_pos.x] = CellType.REVEALED_MINE
+        self.state.revealing_mine_pos = mine_pos
+        self.state.mine_reveal_timer = self.MINE_REVEAL_FRAMES
+
+    def _explode_mine(self, mine_pos: Position) -> None:
+        self.state.explosion = Explosion(mine_pos)
+        self.state.game_over = True
+        pyxel.play(0, 0)
+
     def _reset_game(self) -> None:
-        """Reset the game to initial state."""
-        self.game_state = self._create_initial_game_state()
-    
+        self.state = self._create_level(1)
+        self._update_mine_count()
+
     def update(self) -> None:
-        """Main game update loop."""
-        if self.game_state.game_over:
+        if self.state.explosion:
+            self.state.explosion.frame += 1
+            if self.state.explosion.frame >= self.EXPLOSION_FRAMES:
+                self.state.explosion = None
+
+        if self.state.mine_reveal_timer > 0:
+            self.state.mine_reveal_timer -= 1
+            if self.state.mine_reveal_timer == 0 and self.state.revealing_mine_pos:
+                self._explode_mine(self.state.revealing_mine_pos)
+                self.state.revealing_mine_pos = None
+
+        if self.state.game_over:
             if pyxel.btnp(pyxel.KEY_R):
                 self._reset_game()
             return
-        
-        movement_direction = self._get_movement_direction()
-        if movement_direction:
-            self._handle_player_movement(movement_direction)
-    
-    def _get_cell_color(self, cell_type: CellType) -> int:
-        """Get the color for a given cell type."""
-        color_map = {
-            CellType.EMPTY: 0,      # Black
-            CellType.WALL: 6,       # Light Blue
-            CellType.MINE: 8,       # Red
-            CellType.PLAYER: 11,    # Yellow
-            CellType.ITEM: 10,      # Green
-            CellType.EXIT: 12       # Light Blue
-        }
-        return color_map.get(cell_type, 0)
-    
+
+        if self.state.mine_reveal_timer > 0:
+            return
+
+        direction = self._get_input_direction()
+        if direction:
+            self._try_move_player(direction)
+
+    def _get_danger_color(self, count: int) -> int:
+        if count == 0:
+            return 11  # Yellow
+        elif count <= 2:
+            return 10  # Green
+        elif count <= 4:
+            return 9   # Orange
+        else:
+            return 8   # Red
+
     def _draw_cell(self, x: int, y: int, cell_type: CellType) -> None:
-        """Draw a single cell at the given grid position."""
-        screen_x = x * self.cell_size
-        screen_y = y * self.cell_size
-        color = self._get_cell_color(cell_type)
-        
-        if cell_type == CellType.EMPTY:
-            return  # Don't draw empty cells
-        elif cell_type == CellType.WALL:
-            pyxel.rect(screen_x, screen_y, self.cell_size, self.cell_size, color)
-        elif cell_type == CellType.MINE:
-            pyxel.circb(screen_x + 3, screen_y + 3, 2, color)
+        sx, sy = x * self.CELL_SIZE, y * self.CELL_SIZE
+
+        if cell_type == CellType.WALL:
+            pyxel.rect(sx, sy, self.CELL_SIZE, self.CELL_SIZE, 6)
+        elif cell_type == CellType.REVEALED_MINE:
+            pyxel.circb(sx + 3, sy + 3, 2, 8)
         elif cell_type == CellType.PLAYER:
-            pyxel.rect(screen_x + 1, screen_y + 1, 6, 6, color)
+            pyxel.rect(sx + 1, sy + 1, 6, 6, 11)
         elif cell_type == CellType.ITEM:
-            pyxel.rect(screen_x + 2, screen_y + 2, 4, 4, color)
+            pyxel.rect(sx + 2, sy + 2, 4, 4, 10)
         elif cell_type == CellType.EXIT:
-            pyxel.rectb(screen_x, screen_y, self.cell_size, self.cell_size, color)
-    
-    def _draw_game_grid(self) -> None:
-        """Draw the entire game grid."""
-        for y in range(self.grid_height):
-            for x in range(self.grid_width):
-                cell_type = self.game_state.level_grid[y][x]
-                self._draw_cell(x, y, cell_type)
-    
-    def _draw_ui_text(self) -> None:
-        """Draw UI text (score, level, etc.)."""
-        # Draw level info
-        pyxel.text(2, 2, f"Level: {self.game_state.level_number}", 7)
-        
-        # Draw items collected
-        items_text = f"Items: {self.game_state.items_collected}/{self.game_state.total_items}"
-        pyxel.text(2, 10, items_text, 7)
-        
-        # Draw instructions
-        if self._all_items_collected():
-            pyxel.text(2, self.height - 16, "Find the exit!", 11)
+            pyxel.rectb(sx, sy, self.CELL_SIZE, self.CELL_SIZE, 12)
+
+    def _draw_explosion(self) -> None:
+        if not self.state.explosion:
+            return
+
+        exp = self.state.explosion
+        progress = exp.frame / self.EXPLOSION_FRAMES
+        radius = int(12 * progress)
+
+        sx = exp.pos.x * self.CELL_SIZE + 4
+        sy = exp.pos.y * self.CELL_SIZE + 4
+
+        if progress < 0.3:
+            color = 7  # White
+        elif progress < 0.6:
+            color = 9  # Orange
         else:
-            pyxel.text(2, self.height - 16, "Collect all items!", 7)
-    
-    def _draw_game_over_screen(self) -> None:
-        """Draw the game over screen."""
-        pyxel.cls(0)
-        
-        if self.game_state.won:
-            message = "YOU WON!"
-            color = 11
-        else:
-            message = "GAME OVER"
-            color = 8
-        
-        # Center the message
-        text_width = len(message) * 4
-        x = (self.width - text_width) // 2
-        y = self.height // 2 - 10
-        
-        pyxel.text(x, y, message, color)
-        pyxel.text(x - 20, y + 20, "Press R to restart", 7)
-    
+            color = 8  # Red
+
+        if radius > 0:
+            pyxel.circb(sx, sy, radius, color)
+            if radius > 2:
+                pyxel.circb(sx, sy, radius - 2, color)
+
+        if progress < 0.8:
+            for i in range(8):
+                spark_x = sx + int(radius * 0.7 * pyxel.cos(i * 45))
+                spark_y = sy + int(radius * 0.7 * pyxel.sin(i * 45))
+                if exp.frame % 3 == i % 3:
+                    pyxel.pset(spark_x, spark_y, color)
+
+    def _draw_mine_indicator(self) -> None:
+        count = self.state.mine_count_nearby
+        color = self._get_danger_color(count)
+
+        px = self.state.player_pos.x * self.CELL_SIZE
+        py = self.state.player_pos.y * self.CELL_SIZE
+
+        tx = max(1, min(px - 6, self.width - 8))
+        ty = max(1, min(py - 6, self.height - 8))
+
+        pyxel.circb(tx + 2, ty + 2, 3, 7)
+        pyxel.text(tx, ty, str(count), color)
+
     def draw(self) -> None:
-        """Main draw function."""
         pyxel.cls(0)
-        
-        if self.game_state.game_over:
-            self._draw_game_over_screen()
+
+        # Draw grid
+        for y in range(self.GRID_HEIGHT):
+            for x in range(self.GRID_WIDTH):
+                cell = self.state.grid[y][x]
+                if cell not in [CellType.EMPTY, CellType.MINE]:
+                    self._draw_cell(x, y, cell)
+
+        if not self.state.game_over:
+            self._draw_mine_indicator()
+
+        self._draw_explosion()
+
+        if self.state.game_over:
+            # Draw game over overlay
+            pyxel.rect(0, self.height // 2 - 15, self.width, 30, 0)
+            message = "YOU WON!" if self.state.won else "GAME OVER"
+            color = 11 if self.state.won else 8
+            x = (self.width - len(message) * 4) // 2
+            pyxel.text(x, self.height // 2 - 10, message, color)
+            pyxel.text(x - 20, self.height // 2, "Press R to restart", 7)
         else:
-            self._draw_game_grid()
-            self._draw_ui_text()
+            # Draw UI
+            pyxel.text(2, 2, f"Level: {self.state.level}", 7)
+            pyxel.text(2, 10, f"Items: {self.state.items_collected}/{self.state.total_items}", 7)
+            pyxel.text(2, 18, f"Mines nearby: {self.state.mine_count_nearby}",
+                      self._get_danger_color(self.state.mine_count_nearby))
+
+            if self.state.items_collected >= self.state.total_items:
+                pyxel.text(2, self.height - 16, "Find the exit!", 11)
+            else:
+                pyxel.text(2, self.height - 16, "Collect all items!", 7)
+            pyxel.text(2, self.height - 8, "Mines are hidden!", 8)
 
 
 if __name__ == "__main__":
