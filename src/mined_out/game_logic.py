@@ -2,6 +2,7 @@ from mined_out.common import Direction,CellType,Position,Explosion
 from mined_out.game_state import GameState
 from mined_out.movement_handler import MovementHandler
 from mined_out.grid_analyzer import GridAnalyzer
+from mined_out.level_generator import LevelGenerator
 from mined_out.sound_manager import SoundManager
 
 
