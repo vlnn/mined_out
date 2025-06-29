@@ -1,27 +1,51 @@
 import pyxel
-from random import randint
+from mined_out.constants import GRID_WIDTH, GRID_HEIGHT, CELL_SIZE
+from mined_out.level_generator import LevelGenerator
+from mined_out.input_handler import InputHandler
+from mined_out.game_renderer import GameRenderer
+from mined_out.game_logic import GameLogic
 
-# CONSTANTS
-# TODO: move to constants.py in future
-X = 160
-Y = 120
+class MinedOut:
 
-### Logic func
+    def __init__(self):
+        self.width = GRID_WIDTH * CELL_SIZE
+        self.height = GRID_HEIGHT * CELL_SIZE
 
-def rnd_around(center, epsilon):
-    """Return random coordinate around center with maximum distance = epsilon."""
-    return randint(center-epsilon, center+epsilon)
+        pyxel.init(self.width, self.height, title="Mined-Out!")
+        pyxel.mouse(False)
 
-### Preparation of pyxel.run
-pyxel.init(X, Y)
+        self.level_gen = LevelGenerator(GRID_WIDTH, GRID_HEIGHT)
+        self.input_handler = InputHandler()
+        self.renderer = GameRenderer(self.width, self.height, CELL_SIZE)
+        self.game_logic = GameLogic(GRID_WIDTH, GRID_HEIGHT)
 
-def update():
-    if pyxel.btnp(pyxel.KEY_Q):
-        pyxel.quit()
+        self.state = self.level_gen.create_level(1)
+        self.game_logic._update_mine_count(self.state)
 
-def draw():
-    pyxel.cls(0)
-    pyxel.rect(rnd_around(0,5), rnd_around(0,5), rnd_around(20,10), rnd_around(30,10), pyxel.COLOR_GREEN)
+        pyxel.run(self.update, self.draw)
 
-### Main cycle
-pyxel.run(update, draw)
+    def update(self) -> None:
+        self.game_logic.update_timers(self.state)
+
+        if self.state.game_over:
+            if self.input_handler.should_restart():
+                self._reset_game()
+            return
+
+        if self.state.mine_reveal_timer > 0:
+            return
+
+        direction = self.input_handler.get_direction()
+        if direction:
+            self.game_logic.try_move_player(self.state, direction)
+
+    def draw(self) -> None:
+        self.renderer.draw_game(self.state)
+
+    def _reset_game(self) -> None:
+        self.state = self.level_gen.create_level(1)
+        self.game_logic._update_mine_count(self.state)
+
+
+if __name__ == "__main__":
+    MinedOut()
