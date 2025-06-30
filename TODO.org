@@ -1,12 +1,12 @@
-#+title: TODO
+#+TITLE: TODO
 
 * Current state
-Mined-Out! port is heavily under construction right now. It's 2d engine is ready for being expanded, but the gameplay, design etc is yet to come.
-__Do not expect to get original experience right now!__
+Mined-Out! port is heavily under construction right now. Its 2D engine is ready for being expanded, but the gameplay, design etc is yet to come.
+
+*Do not expect to get original experience right now!*
 
 * List of near-future things to come
-
- [ ] Sprites ported from ZX
- [ ] Field size as in original
- [ ] True-to-original help system
- [ ] Menu system
+- [ ] Sprites ported from ZX
+- [ ] Field size as in original
+- [ ] True-to-original help system
+- [ ] Menu system
