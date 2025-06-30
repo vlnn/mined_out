@@ -69,10 +69,5 @@ class MinedOut:
                    self.state.mine_count_nearby, self.height)
 
 
-def main() -> None:
-    """Entry point for the game."""
-    MinedOut()
-
-
 if __name__ == "__main__":
-    main()
+    MinedOut()

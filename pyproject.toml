@@ -3,17 +3,16 @@ name = "mined-out"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "vlnn",email = "vlnn-github@proton.me"}
+    {name = "vlnn", email = "vlnn-github@proton.me"}
 ]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "pyxel (>=2.3.18,<3.0.0)"
+    "pyxel>=2.3.18,<3.0.0"
 ]
 
 [tool.poetry]
 packages = [{include = "mined_out", from = "src"}]
-
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
@@ -23,3 +22,14 @@ pytest-cov = "^6.2.1"
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+pythonpath = ["src"]
+addopts = [
+    "--verbose",
+    "--tb=short",
+]
