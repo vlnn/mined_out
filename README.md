@@ -25,7 +25,7 @@ You may think of a game as pre-Minesweeper, which uses cursor instead of the mou
 
 #### Be aware port is not ready and looks like that
 
-![Mined-Out Screenshot](./docs/img/mined_out2.png)
+<img src="./docs/img/mined_out2.png" alt="Mined-Out Screenshot" width="352" height="296">
 
 It should become closer and closer to the original every day!
 
