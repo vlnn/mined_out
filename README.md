@@ -45,7 +45,7 @@ This version recreates the classic Mined-Out experience using [Pyxel](https://gi
 
 ### Prerequisites
 
-- (poetry)[https://python-poetry.org]
+- [poetry](https://python-poetry.org)
 
 ### Install the Game
 
