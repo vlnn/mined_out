@@ -9,7 +9,11 @@ Mined-Out is a maze video game created by Ian Andrew originally for the ZX Spect
 Stuart Campbell of Your Sinclair listed the game as the 97th best Spectrum game of all time in 1991, citing its core logic gameplay as "one of the greatest mind-teasers ever devised."
 
 
-### Game Mechanics
+### Game Description
+
+#### Original looked like that:
+
+![Mined-Out Screenshot](./docs/img/mined_out1.png)
 
 The core gameplay revolves around logical deduction:
 - Navigate from the bottom to the top of grid-based minefields
@@ -18,6 +22,13 @@ The core gameplay revolves around logical deduction:
 - Additional challenges are introduced in later stages
 
 You may think of a game as pre-Minesweeper, which uses cursor instead of the mouse clicking, and player should go through the field instead of finding each non-mined cell.
+
+#### Be aware port is not ready and looks like that
+
+![Mined-Out Screenshot](./docs/img/mined_out2.png)
+
+It should become closer and closer to the original every day!
+
 
 ### Progressive Difficulty
 
