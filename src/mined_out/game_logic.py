@@ -1,86 +1,83 @@
-from mined_out.common import Direction, CellType, Position, Explosion, MAX_LEVEL
+from mined_out.common import Direction, CellType, Position, Explosion, MAX_LEVEL, move_position
 from mined_out.game_state import GameState
-from mined_out.movement_handler import MovementHandler
-from mined_out.grid_analyzer import GridAnalyzer
-from mined_out.level_generator import LevelGenerator
-from mined_out.sound_manager import SoundManager
+from mined_out.audio_operations import play_item_collect, play_explosion
+from mined_out.grid_operations import count_adjacent_mines, can_move_to_cell
+from mined_out.level_generation import create_level_state
 
+def can_exit_level(items_collected: int, total_items: int) -> bool:
+    """Check if player can exit current level."""
+    return items_collected >= total_items
 
-class GameLogic:
-    def __init__(self, width: int, height: int):
-        self.width = width
-        self.height = height
-        self.movement = MovementHandler(width, height)
-        self.sounds = SoundManager()
+def should_advance_level(state: GameState) -> bool:
+    """Check if player should advance to next level."""
+    player_cell = state.grid[state.player_pos.y][state.player_pos.x]
+    return player_cell == CellType.EXIT and can_exit_level(state.items_collected, state.total_items)
 
-    def try_move_player(self, state: GameState, direction: Direction) -> None:
-        new_pos = state.player_pos.move(direction)
+def should_win_game(level: int) -> bool:
+    """Check if player has won the game."""
+    return level > MAX_LEVEL
 
-        if not self.movement.is_valid_move(new_pos, state.grid):
-            return
-
-        cell = state.grid[new_pos.y][new_pos.x]
-
-        if cell == CellType.MINE:
-            self._start_mine_reveal(state, new_pos)
-        else:
-            self._move_player_to(state, new_pos)
-            self._handle_cell_interaction(state, cell)
-
-    def _move_player_to(self, state: GameState, new_pos: Position) -> None:
-        old_pos = state.player_pos
-        if state.grid[old_pos.y][old_pos.x] == CellType.PLAYER:
-            state.grid[old_pos.y][old_pos.x] = CellType.VISITED
-
-        state.player_pos = new_pos
-        state.grid[new_pos.y][new_pos.x] = CellType.PLAYER
-        self._update_mine_count(state)
-
-    def _handle_cell_interaction(self, state: GameState, cell: CellType) -> None:
-        if cell == CellType.ITEM:
-            self._collect_item(state)
-        elif cell == CellType.EXIT and self._can_exit(state):
-            self._advance_level(state)
-
-    def _collect_item(self, state: GameState) -> None:
+def handle_cell_interaction(state: GameState, cell_type: CellType) -> None:
+    """Handle player interaction with cell."""
+    if cell_type == CellType.ITEM:
         state.items_collected += 1
-        self.sounds.play_item_collect()
+        play_item_collect()
 
-    def _can_exit(self, state: GameState) -> bool:
-        return state.items_collected >= state.total_items
+def move_player_to_position(state: GameState, new_pos: Position, width: int, height: int) -> None:
+    """Move player to new position and update state."""
+    old_pos = state.player_pos
+    if state.grid[old_pos.y][old_pos.x] == CellType.PLAYER:
+        state.grid[old_pos.y][old_pos.x] = CellType.VISITED
 
-    def _advance_level(self, state: GameState) -> None:
-        if state.level >= MAX_LEVEL:
-            state.won = True
-            state.game_over = True
-        else:
-            level_gen = LevelGenerator(self.width, self.height)
-            new_state = level_gen.create_level(state.level + 1)
-            state.__dict__.update(new_state.__dict__)
-            self._update_mine_count(state)
+    state.player_pos = new_pos
+    state.grid[new_pos.y][new_pos.x] = CellType.PLAYER
+    state.mine_count_nearby = count_adjacent_mines(state.grid, state.player_pos, width, height)
 
-    def _start_mine_reveal(self, state: GameState, mine_pos: Position) -> None:
-        state.grid[mine_pos.y][mine_pos.x] = CellType.REVEALED_MINE
-        state.revealing_mine_pos = mine_pos
-        state.mine_reveal_timer = 5  # MINE_REVEAL_FRAMES
+def start_mine_reveal(state: GameState, mine_pos: Position) -> None:
+    """Start mine reveal sequence."""
+    state.grid[mine_pos.y][mine_pos.x] = CellType.REVEALED_MINE
+    state.revealing_mine_pos = mine_pos
+    state.mine_reveal_timer = 5
 
-    def _explode_mine(self, state: GameState, mine_pos: Position) -> None:
-        state.explosion = Explosion(mine_pos)
-        state.game_over = True
-        self.sounds.play_explosion()
+def explode_mine(state: GameState, mine_pos: Position) -> None:
+    """Trigger mine explosion."""
+    state.explosion = Explosion(mine_pos)
+    state.game_over = True
+    play_explosion()
 
-    def _update_mine_count(self, state: GameState) -> None:
-        analyzer = GridAnalyzer(state.grid, self.width, self.height)
-        state.mine_count_nearby = analyzer.count_adjacent_mines(state.player_pos)
+def try_player_move(state: GameState, direction: Direction, width: int, height: int) -> None:
+    """Attempt to move player in direction."""
+    new_pos = move_position(state.player_pos, direction)
 
-    def update_timers(self, state: GameState) -> None:
-        if state.explosion:
-            state.explosion.frame += 1
-            if state.explosion.frame >= 80:  # EXPLOSION_FRAMES
-                state.explosion = None
+    if not can_move_to_cell(state.grid, new_pos, width, height):
+        return
 
-        if state.mine_reveal_timer > 0:
-            state.mine_reveal_timer -= 1
-            if state.mine_reveal_timer == 0 and state.revealing_mine_pos:
-                self._explode_mine(state, state.revealing_mine_pos)
-                state.revealing_mine_pos = None
+    cell = state.grid[new_pos.y][new_pos.x]
+
+    if cell == CellType.MINE:
+        start_mine_reveal(state, new_pos)
+    else:
+        move_player_to_position(state, new_pos, width, height)
+        handle_cell_interaction(state, cell)
+
+        if should_advance_level(state):
+            if should_win_game(state.level):
+                state.won = True
+                state.game_over = True
+            else:
+                new_state = create_level_state(state.level + 1, width, height)
+                state.__dict__.update(new_state.__dict__)
+                state.mine_count_nearby = count_adjacent_mines(state.grid, state.player_pos, width, height)
+
+def update_game_timers(state: GameState) -> None:
+    """Update all game timers."""
+    if state.explosion:
+        state.explosion.frame += 1
+        if state.explosion.frame >= 80:
+            state.explosion = None
+
+    if state.mine_reveal_timer > 0:
+        state.mine_reveal_timer -= 1
+        if state.mine_reveal_timer == 0 and state.revealing_mine_pos:
+            explode_mine(state, state.revealing_mine_pos)
+            state.revealing_mine_pos = None

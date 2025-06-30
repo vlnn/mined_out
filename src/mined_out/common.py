@@ -19,18 +19,17 @@ class Direction(Enum):
     LEFT = (-1, 0)
     RIGHT = (1, 0)
 
-
-@dataclass
+@dataclass(frozen=True)
 class Position:
     x: int
     y: int
-
-    def move(self, direction: Direction) -> 'Position':
-        dx, dy = direction.value
-        return Position(self.x + dx, self.y + dy)
-
 
 @dataclass
 class Explosion:
     pos: Position
     frame: int = 0
+
+def move_position(pos: Position, direction: Direction) -> Position:
+    """Move position in given direction."""
+    dx, dy = direction.value
+    return Position(pos.x + dx, pos.y + dy)
