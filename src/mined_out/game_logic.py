@@ -15,7 +15,7 @@ def should_advance_level(state: GameState) -> bool:
 
 def should_win_game(level: int) -> bool:
     """Check if player has won the game."""
-    return level > MAX_LEVEL
+    return level >= MAX_LEVEL
 
 def handle_cell_interaction(state: GameState, cell_type: CellType) -> None:
     """Handle player interaction with cell."""

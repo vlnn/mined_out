@@ -8,7 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "pyxel>=2.3.18,<3.0.0"
+    "pyxel>=2.3.19,<3.0.0"
 ]
 
 [tool.poetry]

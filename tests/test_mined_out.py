@@ -7,9 +7,11 @@ from mined_out.grid_operations import (
     is_safe_player_position, can_move_to_cell
 )
 from mined_out.grid_builder import (
-    add_borders_to_grid, calculate_mine_count, calculate_item_count,
+    calculate_mine_count, calculate_item_count,
     place_random_cells
 )
+from mined_out.grid_utils import add_borders_to_grid
+
 from mined_out.level_generation import create_level_state
 from mined_out.game_logic import (
     can_exit_level, should_advance_level, should_win_game,
@@ -190,15 +192,15 @@ class TestGridBuilder:
         assert calculate_item_count(6) == 3   # min 3
         assert calculate_item_count(10) == 3  # min 3
 
-    @patch('mined_out.grid_builder.random.randint')
-    def test_place_random_cells_success(self, mock_randint):
+    def test_place_random_cells_success(self):
         grid = create_empty_grid(5, 5)
         add_borders_to_grid(grid, 5, 5)
 
         # Mock random to always return valid interior positions
-        mock_randint.side_effect = [2, 2, 1, 1, 3, 3]  # x, y pairs
+        with patch('mined_out.grid_builder.random.randint') as mock_randint:
+            mock_randint.side_effect = [2, 2, 1, 1, 3, 3]  # x, y pairs
 
-        placed = place_random_cells(grid, CellType.MINE, 3, 5, 5)
+            placed = place_random_cells(grid, CellType.MINE, 3, 5, 5)
 
         assert placed == 3
         assert grid[2][2] == CellType.MINE
