@@ -1,4 +1,4 @@
-from mined_out_new.foo import foo
+from mined_out.foo import foo
 
 
 def test_foo():
