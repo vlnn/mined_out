@@ -5,8 +5,23 @@ Mined-Out! port is heavily under construction right now. Its 2D engine is ready 
 
 *Do not expect to get original experience right now!*
 
-* List of near-future things to come
-- [ ] Sprites ported from ZX
-- [ ] Field size as in original
-- [ ] True-to-original help system
-- [ ] Menu system
+* Phase 1: Core Data & Logic (No Pyxel)
+
+** DONE types.py - Define all data structures
+** DONE config.py - Set constants
+** DONE movement.py - Position logic (simplest, no dependencies)
+** DONE minefield.py - Generation (depends on movement for validation)
+** DONE pathfinding.py - Validation (depends on minefield)
+** DONE proximity.py - Mine counting (depends on minefield, movement)
+** DONE level.py - Level configs (depends on config)
+** DONE scoring.py - Score calculation (pure math)
+** DONE replay.py - Replay logic (pure data transformation)
+
+* Phase 2: State Management
+
+** DONE game.py - Wire everything together
+
+* Phase 3: Pyxel Integration
+
+** DONE renderer.py - Drawing
+main.py - Game loop
