@@ -7,7 +7,7 @@ def test_game_initializes_with_initial_state(mocker):
     game = MinedOutGame.__new__(MinedOutGame)
     game.__init__ = lambda: None
 
-    from game import create_initial_game_state
+    from mined_out.game import create_initial_game_state
 
     game.state = create_initial_game_state()
     game.mode = GameMode.PLAYING

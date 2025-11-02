@@ -37,6 +37,7 @@ class MinedOutGame:
         self.mode: GameMode = GameMode.PLAYING
         self.replay_state: Optional[ReplayState] = None
         self.replay_history: tuple = ()
+        self.replay_frame_counter: int = 0
         self.wait_timer: float = 0.0
         self.final_score: int = 0
 
@@ -70,8 +71,10 @@ class MinedOutGame:
             self.state = move_player(self.state, direction)
 
             if is_on_mine(self.state):
+                print(f"DEBUG: Hit mine at {self.state.player_pos}")
                 self._start_replay("MINE!")
             elif is_at_exit(self.state):
+                print(f"DEBUG: Reached exit at {self.state.player_pos}")
                 self._start_replay("LEVEL COMPLETE!")
 
     def _update_replay(self):
@@ -81,10 +84,8 @@ class MinedOutGame:
         if self._any_key_pressed():
             self.replay_state = skip_to_end(self.replay_state)
 
-        frame_advance = int(self.replay_state.speed_multiplier)
-        for _ in range(frame_advance):
-            if not is_replay_complete(self.replay_state):
-                self.replay_state = advance_replay(self.replay_state)
+        if not is_replay_complete(self.replay_state):
+            self.replay_state = advance_replay(self.replay_state)
 
         if is_replay_complete(self.replay_state):
             self._start_waiting()
@@ -143,17 +144,18 @@ class MinedOutGame:
             if self.state and self.replay_state:
                 replay_pos = get_replay_position(self.replay_state, self.replay_history)
                 if replay_pos:
+                    visited_up_to_now = frozenset(
+                        self.replay_history[: self.replay_state.current_frame + 1]
+                    )
                     replay_render_state = GameState(
                         level_number=self.state.level_number,
                         minefield=self.state.minefield,
                         player_pos=replay_pos,
-                        visited=frozenset(
-                            self.replay_history[: self.replay_state.current_frame + 1]
-                        ),
+                        visited=visited_up_to_now,
                         move_history=self.replay_history,
                         lives=self.state.lives,
                         score=self.state.score,
-                        move_count=self.state.move_count,
+                        move_count=self.replay_state.current_frame,
                         is_replay=True,
                     )
                     draw_game_state(replay_render_state, show_mines=True)

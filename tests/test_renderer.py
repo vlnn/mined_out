@@ -129,7 +129,7 @@ def test_draw_mine_uses_mine_color(mocker):
 
 def test_draw_status_bar_calls_pyxel_text(mocker):
     mock_text = mocker.patch("mined_out.renderer.pyxel.text")
-    from game import create_initial_game_state
+    from mined_out.game import create_initial_game_state
 
     state = create_initial_game_state()
     draw_status_bar(state, proximity=2)
@@ -139,7 +139,7 @@ def test_draw_status_bar_calls_pyxel_text(mocker):
 
 def test_draw_status_bar_shows_level(mocker):
     mock_text = mocker.patch("mined_out.renderer.pyxel.text")
-    from game import create_initial_game_state
+    from mined_out.game import create_initial_game_state
 
     state = create_initial_game_state()
     draw_status_bar(state, proximity=0)
@@ -152,7 +152,7 @@ def test_draw_status_bar_shows_level(mocker):
 
 def test_draw_status_bar_shows_score(mocker):
     mock_text = mocker.patch("mined_out.renderer.pyxel.text")
-    from game import create_initial_game_state
+    from mined_out.game import create_initial_game_state
 
     state = create_initial_game_state()
     draw_status_bar(state, proximity=0)
@@ -165,7 +165,7 @@ def test_draw_status_bar_shows_score(mocker):
 
 def test_draw_status_bar_shows_lives(mocker):
     mock_text = mocker.patch("mined_out.renderer.pyxel.text")
-    from game import create_initial_game_state
+    from mined_out.game import create_initial_game_state
 
     state = create_initial_game_state()
     draw_status_bar(state, proximity=0)
@@ -202,7 +202,7 @@ def test_draw_game_state_draws_walls(mocker):
     mocker.patch("mined_out.renderer.pyxel.text")
     mocker.patch("mined_out.renderer.pyxel.circ")
     mock_draw_wall = mocker.patch("mined_out.renderer.draw_wall")
-    from game import create_initial_game_state
+    from mined_out.game import create_initial_game_state
 
     state = create_initial_game_state()
     draw_game_state(state, show_mines=False)
@@ -216,7 +216,7 @@ def test_draw_game_state_draws_player(mocker):
     mocker.patch("mined_out.renderer.pyxel.text")
     mocker.patch("mined_out.renderer.pyxel.circ")
     mock_draw_player = mocker.patch("mined_out.renderer.draw_player")
-    from game import create_initial_game_state
+    from mined_out.game import create_initial_game_state
 
     state = create_initial_game_state()
     draw_game_state(state, show_mines=False)
@@ -230,7 +230,7 @@ def test_draw_game_state_draws_status_bar(mocker):
     mocker.patch("mined_out.renderer.pyxel.text")
     mocker.patch("mined_out.renderer.pyxel.circ")
     mock_draw_status = mocker.patch("mined_out.renderer.draw_status_bar")
-    from game import create_initial_game_state
+    from mined_out.game import create_initial_game_state
 
     state = create_initial_game_state()
     draw_game_state(state, show_mines=False)
@@ -244,7 +244,7 @@ def test_draw_game_state_shows_mines_when_requested(mocker):
     mocker.patch("mined_out.renderer.pyxel.text")
     mocker.patch("mined_out.renderer.pyxel.circ")
     mock_draw_mine = mocker.patch("mined_out.renderer.draw_mine")
-    from game import create_initial_game_state
+    from mined_out.game import create_initial_game_state
 
     state = create_initial_game_state()
     draw_game_state(state, show_mines=True)
@@ -258,7 +258,7 @@ def test_draw_game_state_hides_mines_when_not_requested(mocker):
     mocker.patch("mined_out.renderer.pyxel.text")
     mocker.patch("mined_out.renderer.pyxel.circ")
     mock_draw_mine = mocker.patch("mined_out.renderer.draw_mine")
-    from game import create_initial_game_state
+    from mined_out.game import create_initial_game_state
 
     state = create_initial_game_state()
     draw_game_state(state, show_mines=False)
