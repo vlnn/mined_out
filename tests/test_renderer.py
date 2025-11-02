@@ -257,6 +257,7 @@ def test_draw_game_state_hides_mines_when_not_requested(mocker):
     mocker.patch("mined_out.renderer.pyxel.rect")
     mocker.patch("mined_out.renderer.pyxel.text")
     mocker.patch("mined_out.renderer.pyxel.circ")
+    mocker.patch("mined_out.renderer.pyxel.line")
     mock_draw_mine = mocker.patch("mined_out.renderer.draw_mine")
     from mined_out.game import create_initial_game_state
 
@@ -264,3 +265,31 @@ def test_draw_game_state_hides_mines_when_not_requested(mocker):
     draw_game_state(state, show_mines=False)
 
     mock_draw_mine.assert_not_called()
+
+
+def test_draw_path_line_draws_line_between_positions(mocker):
+    mock_line = mocker.patch("mined_out.renderer.pyxel.line")
+    from mined_out.renderer import draw_path_line
+
+    draw_path_line(Position(10, 10), Position(10, 11))
+
+    mock_line.assert_called_once()
+
+
+def test_draw_game_state_draws_path_from_move_history(mocker):
+    mocker.patch("mined_out.renderer.pyxel.cls")
+    mocker.patch("mined_out.renderer.pyxel.rect")
+    mocker.patch("mined_out.renderer.pyxel.text")
+    mocker.patch("mined_out.renderer.pyxel.circ")
+    mock_line = mocker.patch("mined_out.renderer.pyxel.line")
+    from mined_out.game import create_initial_game_state, move_player
+    from mined_out.movement import Direction
+
+    state = create_initial_game_state()
+    state = move_player(state, Direction.UP)
+    state = move_player(state, Direction.UP)
+    state = move_player(state, Direction.RIGHT)
+
+    draw_game_state(state, show_mines=False)
+
+    assert mock_line.call_count >= 3, "Should draw lines for the path taken"

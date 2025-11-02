@@ -16,6 +16,7 @@ from mined_out.config import (
     MINE_COLOR,
     COLOR_BLACK,
     COLOR_WHITE,
+    COLOR_DARK_GRAY,
 )
 from mined_out.proximity import count_adjacent_mines
 from mined_out.level import get_level_colors
@@ -49,6 +50,18 @@ def draw_mine(position: Position) -> None:
     center_y = y + TILE_SIZE // 2
     radius = TILE_SIZE // 3
     pyxel.circ(center_x, center_y, MINE_COLOR, radius)
+
+
+def draw_path_line(from_pos: Position, to_pos: Position) -> None:
+    from_x, from_y = position_to_pixel(from_pos)
+    to_x, to_y = position_to_pixel(to_pos)
+
+    from_center_x = from_x + TILE_SIZE // 2
+    from_center_y = from_y + TILE_SIZE // 2
+    to_center_x = to_x + TILE_SIZE // 2
+    to_center_y = to_y + TILE_SIZE // 2
+
+    pyxel.line(from_center_x, from_center_y, to_center_x, to_center_y, COLOR_DARK_GRAY)
 
 
 def draw_status_bar(state: GameState, proximity: int) -> None:
@@ -85,6 +98,11 @@ def draw_game_state(state: GameState, show_mines: bool = False) -> None:
     if show_mines:
         for mine_pos in state.minefield.mines:
             draw_mine(mine_pos)
+
+    for i in range(len(state.move_history) - 1):
+        current_pos = state.move_history[i]
+        next_pos = state.move_history[i + 1]
+        draw_path_line(current_pos, next_pos)
 
     draw_player(state.player_pos)
 

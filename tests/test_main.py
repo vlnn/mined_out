@@ -127,12 +127,19 @@ def test_replay_mode_advances_frames(mocker):
     game.mode = GameMode.REPLAY
 
     from mined_out.replay import create_replay_state
+    from mined_out.types import Position
 
-    game.replay_history = game.state.move_history
+    game.replay_history = tuple(Position(15, y) for y in range(21, 10, -1))
+    assert len(game.replay_history) > 1, "Need multi-frame replay for this test"
+
     game.replay_state = create_replay_state(game.replay_history)
+    game.replay_frame_counter = 0
     initial_frame = game.replay_state.current_frame
 
-    game._update_replay()
+    for _ in range(20):
+        game._update_replay()
+        if game.replay_state.current_frame > initial_frame:
+            break
 
     assert game.replay_state.current_frame > initial_frame, "Should advance replay"
 

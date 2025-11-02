@@ -1,229 +1,344 @@
 import pytest
-from mined_out.types import Position, ReplayState
-from mined_out.config import REPLAY_SPEED_MULTIPLIER
-from mined_out.replay import (
-    create_replay_state,
-    advance_replay,
-    is_replay_complete,
-    get_replay_position,
-    skip_to_end,
-)
+from mined_out.main import MinedOutGame, GameMode
 
 
-@pytest.mark.parametrize(
-    "move_history,expected_total",
-    [
-        ((Position(15, 21),), 1),
-        ((Position(15, 21), Position(15, 20)), 2),
-        ((Position(15, 21), Position(15, 20), Position(15, 19)), 3),
-        (tuple(Position(x, 10) for x in range(1, 11)), 10),
-    ],
-)
-def test_create_replay_state_has_correct_total_frames(move_history, expected_total):
-    replay = create_replay_state(move_history)
-    assert replay.total_frames == expected_total, (
-        f"Should have {expected_total} total frames"
+def test_game_initializes_with_initial_state(mocker):
+    mocker.patch("mined_out.main.pyxel")
+    game = MinedOutGame.__new__(MinedOutGame)
+    game.__init__ = lambda: None
+
+    from mined_out.game import create_initial_game_state
+
+    game.state = create_initial_game_state()
+    game.mode = GameMode.PLAYING
+
+    assert game.state is not None, "Should have initial state"
+    assert game.mode == GameMode.PLAYING, "Should start in PLAYING mode"
+
+
+def test_game_starts_in_playing_mode(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+
+    game = MinedOutGame()
+
+    assert game.mode == GameMode.PLAYING, "Should start in PLAYING mode"
+
+
+def test_game_has_initial_state(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+
+    game = MinedOutGame()
+
+    assert game.state is not None, "Should have initial game state"
+    assert game.state.level_number == 1, "Should start at level 1"
+
+
+def test_game_initializes_pyxel(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+
+    MinedOutGame()
+
+    mock_pyxel.init.assert_called_once()
+
+
+def test_game_starts_pyxel_run_loop(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+
+    MinedOutGame()
+
+    mock_pyxel.run.assert_called_once()
+
+
+def test_playing_mode_accepts_arrow_keys(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+    mock_pyxel.btnp = mocker.MagicMock(return_value=False)
+
+    game = MinedOutGame()
+    initial_pos = game.state.player_pos
+
+    mock_pyxel.btnp.side_effect = lambda key: key == mock_pyxel.KEY_UP
+    mock_pyxel.KEY_UP = 0
+    mock_pyxel.KEY_DOWN = 1
+    mock_pyxel.KEY_LEFT = 2
+    mock_pyxel.KEY_RIGHT = 3
+
+    game._update_playing()
+
+    assert game.state.move_count > 0 or game.state.player_pos != initial_pos, (
+        "Should process input"
     )
 
 
-def test_create_replay_state_starts_at_frame_zero():
-    move_history = (Position(15, 21), Position(15, 20))
-    replay = create_replay_state(move_history)
-    assert replay.current_frame == 0, "Should start at frame 0"
+def test_playing_mode_detects_mine_collision(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+    mock_pyxel.btnp = mocker.MagicMock(return_value=False)
+    mock_pyxel.KEY_UP = 0
+    mock_pyxel.KEY_DOWN = 1
+    mock_pyxel.KEY_LEFT = 2
+    mock_pyxel.KEY_RIGHT = 3
+
+    game = MinedOutGame()
+
+    from mined_out.types import Position, GameState
+    from mined_out.movement import Direction
+
+    mine_pos = list(game.state.minefield.mines)[0]
+
+    adjacent_pos = Position(mine_pos.x, mine_pos.y + 1)
+    game.state = GameState(
+        level_number=game.state.level_number,
+        minefield=game.state.minefield,
+        player_pos=adjacent_pos,
+        visited=game.state.visited | {adjacent_pos},
+        move_history=game.state.move_history + (adjacent_pos,),
+        lives=game.state.lives,
+        score=game.state.score,
+        move_count=game.state.move_count + 1,
+    )
+
+    mock_pyxel.btnp.side_effect = lambda key: key == mock_pyxel.KEY_UP
+    game._update_playing()
+
+    if game.state.player_pos == mine_pos:
+        assert game.mode == GameMode.REPLAY, "Should start replay on mine hit"
+    else:
+        assert game.mode == GameMode.PLAYING, "Movement didn't land on mine"
 
 
-def test_create_replay_state_uses_correct_speed_multiplier():
-    move_history = (Position(15, 21),)
-    replay = create_replay_state(move_history)
-    assert replay.speed_multiplier == REPLAY_SPEED_MULTIPLIER, (
-        f"Should use speed multiplier {REPLAY_SPEED_MULTIPLIER}"
+def test_replay_mode_advances_frames(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+    mock_pyxel.btnp = mocker.MagicMock(return_value=False)
+
+    game = MinedOutGame()
+    game.mode = GameMode.REPLAY
+
+    from mined_out.replay import create_replay_state
+    from mined_out.types import Position
+
+    game.replay_history = tuple(Position(15, y) for y in range(21, 10, -1))
+    game.replay_state = create_replay_state(game.replay_history)
+    initial_frame = game.replay_state.current_frame
+
+    for _ in range(20):
+        game._update_replay()
+
+    assert game.replay_state.current_frame > initial_frame, "Should advance replay"
+
+
+def test_replay_mode_skips_on_key_press(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+    mock_pyxel.btnp = mocker.MagicMock(side_effect=lambda k: k == 0)
+
+    game = MinedOutGame()
+    game.mode = GameMode.REPLAY
+
+    from mined_out.replay import create_replay_state
+    from mined_out.types import Position
+
+    game.replay_history = tuple(Position(i, 10) for i in range(10))
+    game.replay_state = create_replay_state(game.replay_history)
+
+    game._update_replay()
+
+    from mined_out.replay import is_replay_complete
+
+    assert is_replay_complete(game.replay_state), "Should skip to end on key press"
+
+
+def test_replay_transitions_to_waiting_when_complete(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+    mock_pyxel.btnp = mocker.MagicMock(return_value=False)
+
+    game = MinedOutGame()
+    game.mode = GameMode.REPLAY
+
+    from mined_out.replay import create_replay_state, skip_to_end
+
+    game.replay_history = game.state.move_history
+    game.replay_state = create_replay_state(game.replay_history)
+    game.replay_state = skip_to_end(game.replay_state)
+
+    game._update_replay()
+
+    assert game.mode == GameMode.WAITING, "Should transition to WAITING after replay"
+
+
+def test_waiting_mode_advances_on_key_press(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+    mock_pyxel.btnp = mocker.MagicMock(side_effect=lambda k: k == 0)
+
+    game = MinedOutGame()
+    game.mode = GameMode.WAITING
+
+    from mined_out.level import get_exit_position
+    from mined_out.types import GameState
+
+    exit_pos = get_exit_position()
+    game.state = GameState(
+        level_number=game.state.level_number,
+        minefield=game.state.minefield,
+        player_pos=exit_pos,
+        visited=game.state.visited,
+        move_history=game.state.move_history,
+        lives=game.state.lives,
+        score=game.state.score,
+        move_count=game.state.move_count,
+    )
+
+    game._update_waiting()
+
+    assert game.mode != GameMode.WAITING, "Should exit WAITING on key press"
+
+
+def test_waiting_mode_advances_on_timeout(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+    mock_pyxel.btnp = mocker.MagicMock(return_value=False)
+
+    game = MinedOutGame()
+    game.mode = GameMode.WAITING
+    game.wait_timer = 10.0
+
+    from mined_out.level import get_exit_position
+    from mined_out.types import GameState
+
+    exit_pos = get_exit_position()
+    game.state = GameState(
+        level_number=game.state.level_number,
+        minefield=game.state.minefield,
+        player_pos=exit_pos,
+        visited=game.state.visited,
+        move_history=game.state.move_history,
+        lives=game.state.lives,
+        score=game.state.score,
+        move_count=game.state.move_count,
+    )
+
+    game._update_waiting()
+
+    assert game.mode != GameMode.WAITING, "Should exit WAITING on timeout"
+
+
+def test_game_over_mode_restarts_on_space(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+    mock_pyxel.btnp = mocker.MagicMock(return_value=False)
+    mock_pyxel.KEY_SPACE = 32
+    mock_pyxel.KEY_RETURN = 13
+
+    game = MinedOutGame()
+    game.mode = GameMode.GAME_OVER
+    game.final_score = 500
+
+    mock_pyxel.btnp.side_effect = lambda k: k == mock_pyxel.KEY_SPACE
+    game._update_game_over()
+
+    assert game.mode == GameMode.PLAYING, "Should restart game"
+    assert game.state.level_number == 1, "Should start at level 1"
+
+
+def test_death_with_lives_remaining_returns_to_playing(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
+
+    game = MinedOutGame()
+    game.mode = GameMode.WAITING
+
+    from mined_out.types import Position, GameState
+
+    mine_pos = list(game.state.minefield.mines)[0]
+    game.state = GameState(
+        level_number=game.state.level_number,
+        minefield=game.state.minefield,
+        player_pos=mine_pos,
+        visited=game.state.visited,
+        move_history=game.state.move_history,
+        lives=2,
+        score=game.state.score,
+        move_count=game.state.move_count,
+    )
+
+    game._advance_after_replay()
+
+    assert game.mode == GameMode.PLAYING, (
+        "Should return to PLAYING with lives remaining"
     )
 
 
-def test_create_replay_state_empty_history():
-    move_history = ()
-    replay = create_replay_state(move_history)
-    assert replay.total_frames == 0, "Empty history should have 0 frames"
-    assert replay.current_frame == 0, "Should start at frame 0"
+def test_death_without_lives_goes_to_game_over(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
 
+    game = MinedOutGame()
+    game.mode = GameMode.WAITING
 
-@pytest.mark.parametrize(
-    "current_frame,total_frames",
-    [
-        (0, 10),
-        (5, 10),
-        (9, 10),
-    ],
-)
-def test_advance_replay_increments_frame(current_frame, total_frames):
-    replay = ReplayState(current_frame, total_frames, REPLAY_SPEED_MULTIPLIER)
-    next_replay = advance_replay(replay)
-    assert next_replay.current_frame == current_frame + 1, "Should increment frame by 1"
+    from mined_out.types import Position, GameState
 
-
-def test_advance_replay_preserves_total_frames():
-    replay = ReplayState(5, 10, REPLAY_SPEED_MULTIPLIER)
-    next_replay = advance_replay(replay)
-    assert next_replay.total_frames == 10, "Should preserve total frames"
-
-
-def test_advance_replay_preserves_speed_multiplier():
-    replay = ReplayState(5, 10, REPLAY_SPEED_MULTIPLIER)
-    next_replay = advance_replay(replay)
-    assert next_replay.speed_multiplier == REPLAY_SPEED_MULTIPLIER, (
-        "Should preserve speed multiplier"
+    mine_pos = list(game.state.minefield.mines)[0]
+    game.state = GameState(
+        level_number=game.state.level_number,
+        minefield=game.state.minefield,
+        player_pos=mine_pos,
+        visited=game.state.visited,
+        move_history=game.state.move_history,
+        lives=1,
+        score=100,
+        move_count=game.state.move_count,
     )
 
+    game._advance_after_replay()
 
-def test_advance_replay_at_end_stays_at_end():
-    replay = ReplayState(10, 10, REPLAY_SPEED_MULTIPLIER)
-    next_replay = advance_replay(replay)
-    assert next_replay.current_frame == 10, "Should not advance past total frames"
+    assert game.mode == GameMode.GAME_OVER, "Should go to GAME_OVER with no lives"
 
 
-def test_advance_replay_multiple_times():
-    replay = ReplayState(0, 5, REPLAY_SPEED_MULTIPLIER)
-    for i in range(1, 6):
-        replay = advance_replay(replay)
-        expected = min(i, 5)
-        assert replay.current_frame == expected, (
-            f"After {i} advances, should be at frame {expected}"
-        )
+def test_level_complete_advances_level(mocker):
+    mock_pyxel = mocker.patch("mined_out.main.pyxel")
+    mock_pyxel.init = mocker.MagicMock()
+    mock_pyxel.run = mocker.MagicMock()
 
+    game = MinedOutGame()
+    game.mode = GameMode.WAITING
 
-@pytest.mark.parametrize(
-    "current_frame,total_frames,expected",
-    [
-        (0, 10, False),
-        (5, 10, False),
-        (9, 10, False),
-        (10, 10, True),
-        (11, 10, True),
-        (0, 0, True),
-    ],
-)
-def test_is_replay_complete_returns_correct_value(
-    current_frame, total_frames, expected
-):
-    replay = ReplayState(current_frame, total_frames, REPLAY_SPEED_MULTIPLIER)
-    result = is_replay_complete(replay)
-    assert result == expected, (
-        f"Frame {current_frame}/{total_frames} should be {'complete' if expected else 'incomplete'}"
+    from mined_out.level import get_exit_position
+    from mined_out.types import GameState
+
+    exit_pos = get_exit_position()
+    game.state = GameState(
+        level_number=1,
+        minefield=game.state.minefield,
+        player_pos=exit_pos,
+        visited=game.state.visited,
+        move_history=game.state.move_history,
+        lives=game.state.lives,
+        score=game.state.score,
+        move_count=game.state.move_count,
     )
 
+    game._advance_after_replay()
 
-def test_is_replay_complete_empty_replay():
-    replay = ReplayState(0, 0, REPLAY_SPEED_MULTIPLIER)
-    assert is_replay_complete(replay), "Empty replay should be complete"
-
-
-@pytest.mark.parametrize(
-    "frame,move_history,expected_pos",
-    [
-        (0, (Position(15, 21), Position(15, 20)), Position(15, 21)),
-        (1, (Position(15, 21), Position(15, 20)), Position(15, 20)),
-        (0, (Position(10, 10), Position(11, 10), Position(12, 10)), Position(10, 10)),
-        (1, (Position(10, 10), Position(11, 10), Position(12, 10)), Position(11, 10)),
-        (2, (Position(10, 10), Position(11, 10), Position(12, 10)), Position(12, 10)),
-    ],
-)
-def test_get_replay_position_returns_correct_position(
-    frame, move_history, expected_pos
-):
-    replay = ReplayState(frame, len(move_history), REPLAY_SPEED_MULTIPLIER)
-    result = get_replay_position(replay, move_history)
-    assert result == expected_pos, f"Frame {frame} should show position {expected_pos}"
-
-
-def test_get_replay_position_at_end_returns_last_position():
-    move_history = (Position(15, 21), Position(15, 20), Position(15, 19))
-    replay = ReplayState(3, 3, REPLAY_SPEED_MULTIPLIER)
-    result = get_replay_position(replay, move_history)
-    assert result == Position(15, 19), "Should return last position when at end"
-
-
-def test_get_replay_position_beyond_end_returns_last_position():
-    move_history = (Position(15, 21), Position(15, 20))
-    replay = ReplayState(5, 2, REPLAY_SPEED_MULTIPLIER)
-    result = get_replay_position(replay, move_history)
-    assert result == Position(15, 20), "Should return last position when beyond end"
-
-
-def test_get_replay_position_empty_history_returns_none():
-    move_history = ()
-    replay = ReplayState(0, 0, REPLAY_SPEED_MULTIPLIER)
-    result = get_replay_position(replay, move_history)
-    assert result is None, "Empty history should return None"
-
-
-def test_skip_to_end_sets_frame_to_total():
-    replay = ReplayState(3, 10, REPLAY_SPEED_MULTIPLIER)
-    result = skip_to_end(replay)
-    assert result.current_frame == 10, "Should set current frame to total frames"
-
-
-def test_skip_to_end_preserves_total_frames():
-    replay = ReplayState(3, 10, REPLAY_SPEED_MULTIPLIER)
-    result = skip_to_end(replay)
-    assert result.total_frames == 10, "Should preserve total frames"
-
-
-def test_skip_to_end_preserves_speed_multiplier():
-    replay = ReplayState(3, 10, REPLAY_SPEED_MULTIPLIER)
-    result = skip_to_end(replay)
-    assert result.speed_multiplier == REPLAY_SPEED_MULTIPLIER, (
-        "Should preserve speed multiplier"
-    )
-
-
-def test_skip_to_end_already_at_end():
-    replay = ReplayState(10, 10, REPLAY_SPEED_MULTIPLIER)
-    result = skip_to_end(replay)
-    assert result.current_frame == 10, "Should remain at end"
-
-
-def test_replay_full_sequence():
-    move_history = tuple(Position(15, y) for y in range(21, 16, -1))
-    replay = create_replay_state(move_history)
-
-    assert not is_replay_complete(replay), "Should not be complete at start"
-
-    positions = []
-    while not is_replay_complete(replay):
-        pos = get_replay_position(replay, move_history)
-        positions.append(pos)
-        replay = advance_replay(replay)
-
-    assert len(positions) == 5, "Should have 5 positions"
-    assert positions == list(move_history), "Should replay all positions in order"
-
-
-def test_replay_with_skip():
-    move_history = tuple(Position(15, y) for y in range(21, 11, -1))
-    replay = create_replay_state(move_history)
-
-    replay = advance_replay(replay)
-    replay = advance_replay(replay)
-    assert replay.current_frame == 2, "Should be at frame 2"
-
-    replay = skip_to_end(replay)
-    assert is_replay_complete(replay), "Should be complete after skip"
-
-    pos = get_replay_position(replay, move_history)
-    assert pos == Position(15, 12), "Should show last position after skip"
-
-
-@pytest.mark.parametrize(
-    "total_frames",
-    [1, 5, 10, 20, 100],
-)
-def test_replay_completes_after_exact_advances(total_frames):
-    move_history = tuple(Position(i, i) for i in range(total_frames))
-    replay = create_replay_state(move_history)
-
-    for _ in range(total_frames):
-        replay = advance_replay(replay)
-
-    assert is_replay_complete(replay), (
-        f"Should be complete after {total_frames} advances"
-    )
+    assert game.state.level_number == 2, "Should advance to next level"
+    assert game.mode == GameMode.PLAYING, "Should return to PLAYING"

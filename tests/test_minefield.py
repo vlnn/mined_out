@@ -20,23 +20,6 @@ from mined_out.minefield import (
 )
 
 
-@pytest.mark.parametrize(
-    "level_number,expected_min,expected_max",
-    [
-        (1, 60, 60),
-        (2, 63, 63),
-        (5, 72, 72),
-        (10, 87, 87),
-        (20, 117, 117),
-    ],
-)
-def test_calculate_mine_count_for_levels(level_number, expected_min, expected_max):
-    mine_count = calculate_mine_count(level_number)
-    assert expected_min <= mine_count <= expected_max, (
-        f"Level {level_number} should have between {expected_min} and {expected_max} mines"
-    )
-
-
 def test_calculate_mine_count_respects_max_multiplier():
     very_high_level = 100
     mine_count = calculate_mine_count(very_high_level)

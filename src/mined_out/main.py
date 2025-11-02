@@ -82,10 +82,22 @@ class MinedOutGame:
             return
 
         if self._any_key_pressed():
+            print(
+                f"DEBUG: Key pressed - skipping replay from frame {self.replay_state.current_frame}"
+            )
             self.replay_state = skip_to_end(self.replay_state)
+            return
 
-        if not is_replay_complete(self.replay_state):
-            self.replay_state = advance_replay(self.replay_state)
+        self.replay_frame_counter += 1
+        frames_per_advance = int(60 / self.replay_state.speed_multiplier)
+
+        if self.replay_frame_counter >= frames_per_advance:
+            self.replay_frame_counter = 0
+            if not is_replay_complete(self.replay_state):
+                self.replay_state = advance_replay(self.replay_state)
+                print(
+                    f"DEBUG: Replay frame {self.replay_state.current_frame}/{self.replay_state.total_frames} (speed={self.replay_state.speed_multiplier}x, advance every {frames_per_advance} frames)"
+                )
 
         if is_replay_complete(self.replay_state):
             self._start_waiting()
