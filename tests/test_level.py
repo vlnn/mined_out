@@ -69,7 +69,7 @@ def test_get_start_position_returns_entry_door_position():
 
 def test_get_exit_position_returns_exit_door_position():
     exit_pos = get_exit_position()
-    assert exit_pos.y == EXIT_DOOR_ROW + 1, "Exit should be just inside exit door"
+    assert exit_pos.y == EXIT_DOOR_ROW, "Exit should be inside exit door"
     assert exit_pos.x in EXIT_DOOR_COLS, "Exit should be at one of exit door columns"
 
 

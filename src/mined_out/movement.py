@@ -1,6 +1,6 @@
 from enum import Enum
 from mined_out.types import Position
-from mined_out.config import PLAYAREA_START_ROW, PLAYAREA_END_ROW
+from mined_out.config import PLAYAREA_START_ROW, PLAYAREA_END_ROW, EXIT_DOOR_ROW, EXIT_DOOR_COLS
 
 
 class Direction(Enum):
@@ -19,8 +19,10 @@ def get_next_position(current: Position, direction: Direction) -> Position:
 
 
 def is_valid_position(position: Position) -> bool:
+    # Allow exit gate positions (row 1, columns 14-16) and normal playable area
     return (
-        1 <= position.x <= 30 and PLAYAREA_START_ROW <= position.y <= PLAYAREA_END_ROW
+        1 <= position.x <= 30 and 
+        (position.y == EXIT_DOOR_ROW and position.x in EXIT_DOOR_COLS or PLAYAREA_START_ROW <= position.y <= PLAYAREA_END_ROW)
     )
 
 

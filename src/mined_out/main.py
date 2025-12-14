@@ -120,7 +120,8 @@ class MinedOutGame:
         if self.state is None:
             return
 
-        self.replay_history = self.state.move_history
+        # Use original_path for replay if available, otherwise fall back to move_history
+        self.replay_history = self.state.original_path or self.state.move_history
         self.replay_state = create_replay_state(self.replay_history)
         self.mode = GameMode.REPLAY
 
@@ -157,17 +158,17 @@ class MinedOutGame:
 
         elif self.mode == GameMode.REPLAY:
             if self.state and self.replay_state:
-                replay_pos = get_replay_position(self.replay_state, self.replay_history)
+                replay_pos = get_replay_position(self.replay_state, self.state.original_path or self.replay_history)
                 if replay_pos:
                     visited_up_to_now = frozenset(
-                        self.replay_history[: self.replay_state.current_frame + 1]
+                        (self.state.original_path or self.replay_history)[: self.replay_state.current_frame + 1]
                     )
                     replay_render_state = GameState(
                         level_number=self.state.level_number,
                         minefield=self.state.minefield,
                         player_pos=replay_pos,
                         visited=visited_up_to_now,
-                        move_history=self.replay_history,
+                        move_history=self.state.original_path or self.replay_history,
                         lives=self.state.lives,
                         score=self.state.score,
                         move_count=self.replay_state.current_frame,

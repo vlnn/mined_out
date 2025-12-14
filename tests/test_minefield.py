@@ -41,13 +41,12 @@ class TestIsPositionInBufferZone:
     @pytest.mark.parametrize(
         "position,door_positions,expected",
         [
-            (Position(15, 20), [Position(15, 21), Position(16, 21)], True),
-            (Position(16, 20), [Position(15, 21), Position(16, 21)], True),
-            (Position(14, 21), [Position(15, 21), Position(16, 21)], True),
-            (Position(17, 21), [Position(15, 21), Position(16, 21)], True),
-            (Position(15, 19), [Position(15, 21), Position(16, 21)], False),
-            (Position(13, 21), [Position(15, 21), Position(16, 21)], False),
-            (Position(20, 20), [Position(15, 21), Position(16, 21)], False),
+            (Position(14, 20), [Position(14, 21), Position(15, 21), Position(16, 21)], True),
+            (Position(15, 20), [Position(14, 21), Position(15, 21), Position(16, 21)], True),
+            (Position(16, 20), [Position(14, 21), Position(15, 21), Position(16, 21)], True),
+            (Position(17, 21), [Position(14, 21), Position(15, 21), Position(16, 21)], True),
+            (Position(12, 21), [Position(14, 21), Position(15, 21), Position(16, 21)], False),
+            (Position(18, 20), [Position(14, 21), Position(15, 21), Position(16, 21)], False),
         ],
     )
     def test_is_position_in_buffer_zone(self, position, door_positions, expected):

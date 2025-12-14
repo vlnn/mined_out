@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import FrozenSet, Tuple, Optional, TYPE_CHECKING
+from typing import FrozenSet, Tuple, Optional, TYPE_CHECKING, Any
 
 
 @dataclass(frozen=True)
@@ -19,8 +19,8 @@ class LevelConfig:
     mine_count: int
     unvisited_color: int
     visited_color: int
-    entry_door_cols: Tuple[int, int]
-    exit_door_cols: Tuple[int, int]
+    entry_door_cols: Tuple[int, int, int]
+    exit_door_cols: Tuple[int, int, int]
     start_position: Position
 
 
@@ -44,9 +44,10 @@ class GameState:
     lives: int
     score: int
     move_count: int
+    original_path: Optional[Tuple[Position, ...]] = None  # Original path before shuffling for replay
     is_replay: bool = False
     shuffle_count: int = 0
-    last_shuffle_event: Optional["ShuffleEvent"] = None
+    last_shuffle_event: Optional[Any] = None
     
     def _replace(self, **kwargs):
         """Create a new GameState with replaced fields."""
@@ -56,6 +57,7 @@ class GameState:
             player_pos=kwargs.get('player_pos', self.player_pos),
             visited=kwargs.get('visited', self.visited),
             move_history=kwargs.get('move_history', self.move_history),
+            original_path=kwargs.get('original_path', self.original_path),
             lives=kwargs.get('lives', self.lives),
             score=kwargs.get('score', self.score),
             move_count=kwargs.get('move_count', self.move_count),

@@ -47,7 +47,7 @@ def draw_tile(position: Position, color: int, add_texture: bool = False) -> None
 def draw_wall() -> None:
     # Draw top wall with exit door gap and texture
     for x in range(SCREEN_WIDTH_TILES):
-        if not (EXIT_DOOR_COLS[0] <= x <= EXIT_DOOR_COLS[1]):
+        if x not in EXIT_DOOR_COLS:
             draw_tile(Position(x, TOP_WALL_ROW), WALL_COLOR)
             # Add brick pattern texture
             if x % 2 == 0:
@@ -55,7 +55,7 @@ def draw_wall() -> None:
     
     # Draw bottom wall with entry door gap and texture
     for x in range(SCREEN_WIDTH_TILES):
-        if not (ENTRY_DOOR_COLS[0] <= x <= ENTRY_DOOR_COLS[1]):
+        if x not in ENTRY_DOOR_COLS:
             draw_tile(Position(x, BOTTOM_WALL_ROW), WALL_COLOR)
             # Add brick pattern texture
             if x % 2 == 1:
@@ -64,23 +64,23 @@ def draw_wall() -> None:
 
 def draw_entry_door() -> None:
     # Draw entry door at bottom with green color
-    for x in range(ENTRY_DOOR_COLS[0], ENTRY_DOOR_COLS[1] + 1):
+    for x in ENTRY_DOOR_COLS:
         draw_tile(Position(x, ENTRY_DOOR_ROW), COLOR_GREEN)
         # Add door frame effect
         if x == ENTRY_DOOR_COLS[0]:
             pyxel.rect(x * TILE_SIZE, ENTRY_DOOR_ROW * TILE_SIZE, 1, TILE_SIZE, WALL_COLOR)
-        elif x == ENTRY_DOOR_COLS[1]:
+        elif x == ENTRY_DOOR_COLS[-1]:  # Rightmost door
             pyxel.rect((x + 1) * TILE_SIZE - 1, ENTRY_DOOR_ROW * TILE_SIZE, 1, TILE_SIZE, WALL_COLOR)
 
 
 def draw_exit_door() -> None:
     # Draw exit door at top with red color
-    for x in range(EXIT_DOOR_COLS[0], EXIT_DOOR_COLS[1] + 1):
+    for x in EXIT_DOOR_COLS:
         draw_tile(Position(x, EXIT_DOOR_ROW), COLOR_RED)
         # Add door frame effect
         if x == EXIT_DOOR_COLS[0]:
             pyxel.rect(x * TILE_SIZE, EXIT_DOOR_ROW * TILE_SIZE, 1, TILE_SIZE, WALL_COLOR)
-        elif x == EXIT_DOOR_COLS[1]:
+        elif x == EXIT_DOOR_COLS[-1]:  # Rightmost door
             pyxel.rect((x + 1) * TILE_SIZE - 1, EXIT_DOOR_ROW * TILE_SIZE, 1, TILE_SIZE, WALL_COLOR)
 
 

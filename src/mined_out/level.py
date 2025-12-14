@@ -69,11 +69,11 @@ def get_lighter_color(base_color: int) -> int:
 
 
 def get_start_position() -> Position:
-    return Position(ENTRY_DOOR_COLS[0], START_POSITION_ROW)
+    return Position(ENTRY_DOOR_COLS[1], START_POSITION_ROW)
 
 
 def get_exit_position() -> Position:
-    return Position(EXIT_DOOR_COLS[0], EXIT_DOOR_ROW + 1)
+    return Position(EXIT_DOOR_COLS[1], EXIT_DOOR_ROW)
 
 
 def create_level_config(level_number: int) -> LevelConfig:

@@ -41,9 +41,9 @@ def test_get_next_position_returns_correct_position(
         (Position(15, PLAYAREA_START_ROW), True),
         (Position(0, PLAYAREA_START_ROW), False),
         (Position(31, PLAYAREA_START_ROW), False),
-        (Position(15, TOP_WALL_ROW), False),
+        (Position(15, TOP_WALL_ROW), True),  # Exit gate position should be valid
         (Position(15, BOTTOM_WALL_ROW), False),
-        (Position(15, 1), False),
+        (Position(15, 1), True),  # Exit gate position should be valid
         (Position(15, 22), False),
         (Position(-1, 15), False),
         (Position(32, 15), False),
@@ -75,7 +75,7 @@ def test_is_valid_position_accepts_all_playable_positions():
         (Position(30, 10), True),
         (Position(0, 10), False),
         (Position(31, 10), False),
-        (Position(15, TOP_WALL_ROW), False),
+        (Position(15, TOP_WALL_ROW), True),  # Exit gate position should be valid
         (Position(15, BOTTOM_WALL_ROW), False),
     ],
 )
@@ -91,7 +91,7 @@ def test_can_move_to_basic_validation(position, expected):
     [
         (Position(1, PLAYAREA_START_ROW), Direction.LEFT, False),
         (Position(30, PLAYAREA_START_ROW), Direction.RIGHT, False),
-        (Position(15, PLAYAREA_START_ROW), Direction.UP, False),
+        (Position(15, PLAYAREA_START_ROW), Direction.UP, True),  # Can move to exit gate
         (Position(15, PLAYAREA_END_ROW), Direction.DOWN, False),
         (Position(15, 10), Direction.UP, True),
         (Position(15, 10), Direction.DOWN, True),

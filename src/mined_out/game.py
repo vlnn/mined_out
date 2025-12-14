@@ -28,6 +28,7 @@ def create_initial_game_state() -> GameState:
         player_pos=start_pos,
         visited=frozenset([start_pos]),
         move_history=(start_pos,),
+        original_path=(start_pos,),  # Initialize with starting position
         lives=INITIAL_LIVES,
         score=0,
         move_count=0,
@@ -47,6 +48,7 @@ def move_player(state: GameState, direction: Direction) -> GameState:
         player_pos=next_pos,
         visited=state.visited | {next_pos},
         move_history=state.move_history + (next_pos,),
+        original_path=state.original_path + (next_pos,) if state.original_path else (next_pos,),
         lives=state.lives,
         score=state.score,
         move_count=state.move_count + 1,
@@ -88,6 +90,7 @@ def start_new_level(level_number: int, score: int, lives: int) -> GameState:
         player_pos=start_pos,
         visited=frozenset([start_pos]),
         move_history=(start_pos,),
+        original_path=(start_pos,),
         lives=lives,
         score=score,
         move_count=0,

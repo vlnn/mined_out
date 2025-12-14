@@ -11,6 +11,7 @@ from mined_out.config import (
     PLAYAREA_END_ROW,
     TOP_WALL_ROW,
     BOTTOM_WALL_ROW,
+    SHUFFLE_PROBABILITY,
 )
 from mined_out.movement import is_valid_position
 
@@ -94,6 +95,10 @@ class PathShuffler:
         if pos == state.player_pos:
             return False
         
+        # Cannot shuffle into mine positions
+        if state.minefield.has_mine_at(pos):
+            return False
+        
         return True
     
     def shuffle_path(self, state: GameState) -> Tuple[GameState, Optional[ShuffleEvent]]:
@@ -102,26 +107,44 @@ class PathShuffler:
         if not visited_positions:
             return state, None
         
-        # Select random visited position to shuffle
-        old_pos = random.choice(visited_positions)
-        distance = self.get_shuffle_distance()
+        # Determine which positions to shuffle (30% chance each)
+        # Exclude player's current position from shuffling
+        positions_to_shuffle = [
+            pos for pos in visited_positions 
+            if pos != state.player_pos and random.random() < SHUFFLE_PROBABILITY
+        ]
         
-        # Find valid target positions within distance
-        valid_targets = self._find_valid_targets(state, old_pos, distance)
-        
-        if not valid_targets:
+        if not positions_to_shuffle:
             return state, None
         
-        new_pos = random.choice(valid_targets)
-        
-        # Create new visited set with swapped positions
+        # Track all shuffle changes
+        position_mapping = {}
         new_visited = set(state.visited)
-        new_visited.remove(old_pos)
-        new_visited.add(new_pos)
         
-        # Update move history to reflect the shuffle
+        for old_pos in positions_to_shuffle:
+            distance = self.get_shuffle_distance()
+            
+            # Find valid target positions within distance
+            valid_targets = self._find_valid_targets(state, old_pos, distance)
+            
+            if not valid_targets:
+                continue
+            
+            new_pos = random.choice(valid_targets)
+            
+            # Update visited set
+            new_visited.remove(old_pos)
+            new_visited.add(new_pos)
+            
+            # Track mapping for history update
+            position_mapping[old_pos] = new_pos
+        
+        if not position_mapping:
+            return state, None
+        
+        # Update move history to reflect all shuffles
         new_move_history = tuple(
-            new_pos if pos == old_pos else pos 
+            position_mapping.get(pos, pos) 
             for pos in state.move_history
         )
         
@@ -132,16 +155,18 @@ class PathShuffler:
             player_pos=state.player_pos,
             visited=frozenset(new_visited),
             move_history=new_move_history,
+            original_path=state.original_path,  # Preserve original path for replay
             lives=state.lives,
             score=state.score,
             move_count=state.move_count,
             is_replay=state.is_replay
         )
         
-        # Create shuffle event for visual feedback
+        # Create shuffle event for visual feedback (representing first shuffle)
+        first_old_pos, first_new_pos = next(iter(position_mapping.items()))
         shuffle_event = ShuffleEvent(
-            old_position=old_pos,
-            new_position=new_pos,
+            old_position=first_old_pos,
+            new_position=first_new_pos,
             timestamp=0  # Will be set by caller
         )
         
