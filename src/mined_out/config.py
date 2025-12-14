@@ -58,6 +58,7 @@ COLOR_LIGHT_BLUE = 13
 COLOR_LAVENDER = 14
 COLOR_PINK = 15
 
-WALL_COLOR = COLOR_LIGHT_GRAY
+# ZX Spectrum inspired colors for better retro feel
+WALL_COLOR = COLOR_DARK_GRAY  # Darker walls like ZX Spectrum
 PLAYER_COLOR = COLOR_WHITE
 MINE_COLOR = COLOR_BLACK
