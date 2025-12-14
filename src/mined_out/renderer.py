@@ -20,6 +20,7 @@ from mined_out.config import (
     COLOR_LIGHT_GRAY,
     COLOR_GREEN,
     COLOR_RED,
+    COLOR_YELLOW,
     ENTRY_DOOR_COLS,
     EXIT_DOOR_COLS,
     ENTRY_DOOR_ROW,
@@ -141,6 +142,24 @@ def draw_path_marker(position: Position) -> None:
     pyxel.rect(x + 5, y + 5, 2, 1, COLOR_LIGHT_GRAY)
 
 
+def draw_shuffle_feedback(shuffle_event) -> None:
+    """Draw visual feedback for path shuffling."""
+    if not shuffle_event:
+        return
+    
+    # Calculate animation progress (0.5 second duration = 30 frames at 60 FPS)
+    import pyxel
+    frames_since_shuffle = pyxel.frame_count - shuffle_event.timestamp
+    if frames_since_shuffle > 30:
+        return
+    
+    # Draw yellow border around affected positions
+    for pos in [shuffle_event.old_position, shuffle_event.new_position]:
+        x, y = position_to_pixel(pos)
+        # Draw border effect
+        pyxel.rectb(x-1, y-1, TILE_SIZE+2, TILE_SIZE+2, COLOR_YELLOW)
+
+
 def draw_status_bar(state: GameState, proximity: int) -> None:
     y = STATUS_BAR_ROW * TILE_SIZE + 1
     
@@ -182,11 +201,6 @@ def draw_game_state(state: GameState, show_mines: bool = False) -> None:
         for mine_pos in state.minefield.mines:
             draw_mine(mine_pos)
 
-    for i in range(len(state.move_history) - 1):
-        current_pos = state.move_history[i]
-        next_pos = state.move_history[i + 1]
-        draw_path_line(current_pos, next_pos)
-
     draw_player(state.player_pos)
     
     # Draw proximity number on player position like original Mined-Out
@@ -195,5 +209,9 @@ def draw_game_state(state: GameState, show_mines: bool = False) -> None:
         x, y = position_to_pixel(state.player_pos)
         # Draw number in bottom-right corner of player tile
         pyxel.text(x + 1, y + 5, str(proximity), COLOR_BLACK)
+    
+    # Draw shuffle feedback if available
+    if hasattr(state, 'last_shuffle_event') and state.last_shuffle_event:
+        draw_shuffle_feedback(state.last_shuffle_event)
     
     draw_status_bar(state, proximity)

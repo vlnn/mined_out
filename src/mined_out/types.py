@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import FrozenSet, Tuple
+from typing import FrozenSet, Tuple, Optional, TYPE_CHECKING
 
 
 @dataclass(frozen=True)
@@ -45,6 +45,24 @@ class GameState:
     score: int
     move_count: int
     is_replay: bool = False
+    shuffle_count: int = 0
+    last_shuffle_event: Optional["ShuffleEvent"] = None
+    
+    def _replace(self, **kwargs):
+        """Create a new GameState with replaced fields."""
+        return GameState(
+            level_number=kwargs.get('level_number', self.level_number),
+            minefield=kwargs.get('minefield', self.minefield),
+            player_pos=kwargs.get('player_pos', self.player_pos),
+            visited=kwargs.get('visited', self.visited),
+            move_history=kwargs.get('move_history', self.move_history),
+            lives=kwargs.get('lives', self.lives),
+            score=kwargs.get('score', self.score),
+            move_count=kwargs.get('move_count', self.move_count),
+            is_replay=kwargs.get('is_replay', self.is_replay),
+            shuffle_count=kwargs.get('shuffle_count', self.shuffle_count),
+            last_shuffle_event=kwargs.get('last_shuffle_event', self.last_shuffle_event),
+        )
 
 
 @dataclass(frozen=True)

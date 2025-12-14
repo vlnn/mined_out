@@ -6,6 +6,16 @@ from mined_out.level import generate_level, get_start_position, get_exit_positio
 from mined_out.pathfinding import find_path
 from mined_out.scoring import calculate_level_score, apply_death_penalty
 
+# Global PathShuffler instance to avoid circular imports
+_path_shuffler = None
+
+def get_path_shuffler():
+    global _path_shuffler
+    if _path_shuffler is None:
+        from mined_out.path_shuffler import PathShuffler
+        _path_shuffler = PathShuffler()
+    return _path_shuffler
+
 
 def create_initial_game_state() -> GameState:
     level_number = 1
@@ -31,7 +41,7 @@ def move_player(state: GameState, direction: Direction) -> GameState:
     if not can_move_to(next_pos):
         return state
 
-    return GameState(
+    new_state = GameState(
         level_number=state.level_number,
         minefield=state.minefield,
         player_pos=next_pos,
@@ -41,7 +51,23 @@ def move_player(state: GameState, direction: Direction) -> GameState:
         score=state.score,
         move_count=state.move_count + 1,
         is_replay=state.is_replay,
+        shuffle_count=state.shuffle_count,
+        last_shuffle_event=state.last_shuffle_event,
     )
+    
+    # Trigger PathShuffler if needed (Level 2+)
+    if new_state.level_number >= 2:
+        shuffler = get_path_shuffler()
+        if shuffler.should_shuffle(new_state):
+            shuffled_state, shuffle_event = shuffler.shuffle_path(new_state)
+            if shuffle_event:
+                # Timestamp will be set by caller (main game loop)
+                return shuffled_state._replace(
+                    shuffle_count=shuffled_state.shuffle_count + 1,
+                    last_shuffle_event=shuffle_event
+                )
+    
+    return new_state
 
 
 def is_on_mine(state: GameState) -> bool:

@@ -286,23 +286,7 @@ def test_draw_game_state_hides_mines_when_not_requested(mocker):
     mock_draw_mine.assert_not_called()
 
 
-def test_draw_path_line_draws_line_between_positions(mocker):
-    mock_cls = mocker.patch("mined_out.renderer.pyxel.cls")
-    mock_line = mocker.patch("mined_out.renderer.pyxel.line")
-    mock_rect = mocker.patch("mined_out.renderer.pyxel.rect")
-    mock_circ = mocker.patch("mined_out.renderer.pyxel.circ")
-    mock_text = mocker.patch("mined_out.renderer.pyxel.text")
-    from mined_out.game import create_initial_game_state, move_player
-    from mined_out.movement import Direction
 
-    state = create_initial_game_state()
-    state = move_player(state, Direction.UP)
-    state = move_player(state, Direction.UP)
-    state = move_player(state, Direction.RIGHT)
-
-    draw_game_state(state, show_mines=False)
-
-    assert mock_line.call_count >= 3, "Should draw lines for the path taken"
 
 
 def test_draw_entry_door_calls_pyxel_rect(mocker):

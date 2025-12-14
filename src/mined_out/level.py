@@ -7,29 +7,65 @@ from mined_out.config import (
     EXIT_DOOR_COLS,
     START_POSITION_ROW,
     EXIT_DOOR_ROW,
-    COLOR_YELLOW,
+    COLOR_DARK_BLUE,
+    COLOR_DARK_GREEN,
+    COLOR_DARK_PURPLE,
+    COLOR_BROWN,
+    COLOR_DARK_GRAY,
+    COLOR_LIGHT_GRAY,
+    COLOR_WHITE,
+    COLOR_RED,
     COLOR_ORANGE,
+    COLOR_YELLOW,
     COLOR_GREEN,
     COLOR_CYAN,
+    COLOR_LIGHT_BLUE,
+    COLOR_LAVENDER,
     COLOR_PINK,
 )
 from mined_out.minefield import calculate_mine_count, create_minefield
 from mined_out.pathfinding import has_path
 
 
+# Base colors for levels (darker versions)
 LEVEL_COLORS = [
-    COLOR_YELLOW,
-    COLOR_ORANGE,
-    COLOR_GREEN,
-    COLOR_CYAN,
-    COLOR_PINK,
+    COLOR_DARK_BLUE,      # Level 1
+    COLOR_DARK_GREEN,      # Level 2
+    COLOR_DARK_PURPLE,      # Level 3
+    COLOR_BROWN,           # Level 4
+    COLOR_DARK_GRAY,        # Level 5
+    COLOR_RED,             # Level 6
+    COLOR_ORANGE,          # Level 7
+    COLOR_YELLOW,          # Level 8
+    COLOR_GREEN,           # Level 9
+    COLOR_CYAN,            # Level 10+
 ]
 
 
 def get_level_colors(level_number: int) -> Tuple[int, int]:
+    """Return (unvisited_color, visited_color) for the given level."""
     color_index = (level_number - 1) % len(LEVEL_COLORS)
-    color = LEVEL_COLORS[color_index]
-    return (color, color)
+    base_color = LEVEL_COLORS[color_index]
+    lighter_color = get_lighter_color(base_color)
+    return (base_color, lighter_color)
+
+
+def get_lighter_color(base_color: int) -> int:
+    """Return a lighter version of the given color for visited tiles."""
+    # Map each base color to its lighter counterpart
+    lighter_map = {
+        COLOR_DARK_BLUE: COLOR_LIGHT_BLUE,
+        COLOR_DARK_GREEN: COLOR_GREEN,
+        COLOR_DARK_PURPLE: COLOR_LAVENDER,
+        COLOR_BROWN: COLOR_ORANGE,
+        COLOR_DARK_GRAY: COLOR_WHITE,
+        COLOR_RED: COLOR_PINK,
+        COLOR_ORANGE: COLOR_YELLOW,
+        COLOR_YELLOW: COLOR_CYAN,
+        COLOR_GREEN: COLOR_LIGHT_BLUE,
+        COLOR_CYAN: COLOR_LAVENDER,
+    }
+    return lighter_map.get(base_color, base_color)
 
 
 def get_start_position() -> Position:
