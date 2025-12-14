@@ -1,6 +1,7 @@
 import pyxel
 from enum import Enum
 from typing import Optional
+from loguru import logger
 from mined_out.types import GameState, ReplayState
 from mined_out.config import SCREEN_WIDTH, SCREEN_HEIGHT, REPLAY_AUTO_ADVANCE_TIMEOUT
 from mined_out.game import (
@@ -71,10 +72,10 @@ class MinedOutGame:
             self.state = move_player(self.state, direction)
 
             if is_on_mine(self.state):
-                print(f"DEBUG: Hit mine at {self.state.player_pos}")
+                logger.debug("Hit mine at {}", self.state.player_pos)
                 self._start_replay("MINE!")
             elif is_at_exit(self.state):
-                print(f"DEBUG: Reached exit at {self.state.player_pos}")
+                logger.debug("Reached exit at {}", self.state.player_pos)
                 self._start_replay("LEVEL COMPLETE!")
 
     def _update_replay(self):
@@ -82,9 +83,7 @@ class MinedOutGame:
             return
 
         if self._any_key_pressed():
-            print(
-                f"DEBUG: Key pressed - skipping replay from frame {self.replay_state.current_frame}"
-            )
+            logger.debug("Key pressed - skipping replay from frame {}", self.replay_state.current_frame)
             self.replay_state = skip_to_end(self.replay_state)
             return
 
@@ -95,8 +94,12 @@ class MinedOutGame:
             self.replay_frame_counter = 0
             if not is_replay_complete(self.replay_state):
                 self.replay_state = advance_replay(self.replay_state)
-                print(
-                    f"DEBUG: Replay frame {self.replay_state.current_frame}/{self.replay_state.total_frames} (speed={self.replay_state.speed_multiplier}x, advance every {frames_per_advance} frames)"
+                logger.debug(
+                    "Replay frame {}/{} (speed={}x, advance every {} frames)",
+                    self.replay_state.current_frame,
+                    self.replay_state.total_frames,
+                    self.replay_state.speed_multiplier,
+                    frames_per_advance
                 )
 
         if is_replay_complete(self.replay_state):

@@ -1,8 +1,7 @@
 # Ideas
 
 ## 🎯 Core Roguelike Mechanics That Fit Well
-1. Items/Pickups (Easy to add)
-    - Spawned randomly on the map
+1. Items/Pickups (Easy to add) spawned randomly on the map
     - Mine Detector: Reveals adjacent mines permanently
     - Shield: Survive one mine hit
     - Teleport Scroll: Jump to random safe position
